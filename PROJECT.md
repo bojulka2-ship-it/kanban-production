@@ -40,9 +40,9 @@
 - `POST /projects` — создание проекта (manager)
 - `PUT /projects/{project}` — обновление проекта (manager)
 - `POST /projects/{project}/archive` | `restore` — архив/восстановление (manager)
-- `POST /project-tasks/{projectTask}/move` — перенос задачи в этап `{stage_id}` (JSON): целевой stage_status → in_progress, `entered_at=now`, история `stage_started`/`stage_reopened` (если этап вернули из done)
-- `POST /project-tasks/{projectTask}/complete` — завершение этапа `{stage_id}` (JSON): → done, история `stage_completed`
-- `GET /project-tasks/{projectTask}/detail` — JSON для модалки карточки: задача/проект/ответственный + 5 этапов (статус, `entered_at` ДД.ММ.ГГГГ) + история в обратном хронологическом порядке (ДД.ММ.ГГГГ ЧЧ:ММ, «Фамилия И.», «этап „…“ начат/завершён/возвращён в работу»)
+- `GET /project-tasks/{id}/comments` — JSON ленты комментариев (автор/инициалы/цвет, дата, тело, `canDelete`), `can_write`, `is_manager`, `me`
+- `POST /comments` — создать комментарий (требует JSON `{project_task_id, body}`), доступ: ответственный или manager
+- `DELETE /comments/{id}` — удалить (автор комментария или manager)
 - `GET /password`, `PUT /password` — смена собственного пароля
 - `GET /users`, `POST /users`, `PATCH /users/{user}` — раздел «Пользователи» (только manager)
 - `POST /users/{user}/reset-password` — сброс пароля пользователя

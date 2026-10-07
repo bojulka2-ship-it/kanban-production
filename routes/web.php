@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CommentController;
 use App\Http\Controllers\PasswordController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectTaskController;
@@ -31,6 +32,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/project-tasks/{projectTask}/move', [ProjectTaskController::class, 'move'])->name('project-tasks.move');
     Route::post('/project-tasks/{projectTask}/complete', [ProjectTaskController::class, 'complete'])->name('project-tasks.complete');
     Route::get('/project-tasks/{projectTask}/detail', [ProjectTaskController::class, 'detail'])->name('project-tasks.detail');
+    Route::get('/project-tasks/{projectTask}/comments', [CommentController::class, 'index'])->name('project-tasks.comments');
+
+    // Комментарии (права — в контроллере: ответственный/руководитель пишут, автор/руководитель удаляют)
+    Route::post('/comments', [CommentController::class, 'store'])->name('comments.store');
+    Route::delete('/comments/{comment}', [CommentController::class, 'destroy'])->name('comments.destroy');
 
     // Смена собственного пароля
     Route::get('/password', [PasswordController::class, 'edit'])->name('password.edit');

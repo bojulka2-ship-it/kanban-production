@@ -53,6 +53,27 @@ class User extends Authenticatable
     }
 
     /**
+     * Цвет-бейдж для кружка-инициалов: стабилен для одного имени (из хэша),
+     * разные пользователи получают разные цвета из палитры.
+     */
+    public function getAvatarColorAttribute(): string
+    {
+        $palette = [
+            'bg-blue-100 text-blue-700',
+            'bg-emerald-100 text-emerald-700',
+            'bg-amber-100 text-amber-700',
+            'bg-fuchsia-100 text-fuchsia-700',
+            'bg-sky-100 text-sky-700',
+            'bg-rose-100 text-rose-700',
+            'bg-violet-100 text-violet-700',
+            'bg-cyan-100 text-cyan-700',
+        ];
+        $index = hexdec(substr(md5($this->name ?? ''), 0, 4)) % count($palette);
+
+        return $palette[$index];
+    }
+
+    /**
      * Инициалы для карточки доски (первые буквы имени и фамилии).
      */
     public function getInitialsAttribute(): string

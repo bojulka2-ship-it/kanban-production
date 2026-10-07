@@ -237,9 +237,52 @@
                     <p x-show="modal.data.history.length === 0" class="text-[13px] text-muted">Пока нет записей.</p>
                 </div>
 
-                {{-- Вкладка «Комментарии» — заглушка до этапа 6 --}}
-                <div x-show="!modal.loading && modal.tab === 'comments'" x-cloak class="text-[13px] text-muted">
-                    Скоро здесь будут комментарии.
+                {{-- Вкладка «Комментарии» --}}
+                <div x-show="!modal.loading && modal.tab === 'comments'" x-cloak>
+                    {{-- Форма: ответственный или руководитель --}}
+                    <template x-if="modal.canWrite">
+                        <div>
+                            <textarea x-ref="commentInput" rows="2" x-model="commentBody"
+                                      @input="autoGrow($el)"
+                                      @keydown.ctrl.enter="submitComment()"
+                                      placeholder="Написать комментарий…"
+                                      class="w-full rounded-lg border border-line px-3 py-2 text-sm resize-none overflow-hidden focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"></textarea>
+                            <div class="flex justify-end mt-1.5">
+                                <button type="button" @click="submitComment()"
+                                        class="rounded-lg bg-accent hover:bg-accent-hover text-white text-sm font-medium px-4 py-1.5 transition-colors">
+                                    Отправить
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+
+                    {{-- Подпись для тех, кто не может комментировать --}}
+                    <template x-if="!modal.canWrite">
+                        <p class="text-[12px] text-muted rounded-lg bg-page border border-line px-3 py-2">
+                            Комментировать может ответственный или руководитель.
+                        </p>
+                    </template>
+
+                    {{-- Лента комментариев --}}
+                    <div class="space-y-3.5 mt-4">
+                        <template x-for="c in modal.comments" :key="c.id">
+                            <div class="flex gap-2.5">
+                                <span class="w-8 h-8 rounded-full shrink-0 inline-flex items-center justify-center text-[11px] font-bold"
+                                      :class="c.user.color" x-text="c.user.initials"></span>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-baseline gap-2">
+                                        <span class="text-[13px] font-semibold" x-text="c.user.name"></span>
+                                        <span class="text-[11px] text-muted whitespace-nowrap" x-text="c.time"></span>
+                                    </div>
+                                    <p class="text-[13px] leading-relaxed mt-0.5 break-words" x-html="nl2brHtml(c.body)"></p>
+                                </div>
+                                <button x-show="c.canDelete" type="button"
+                                        @click="if (confirm('Удалить комментарий?')) removeComment(c.id)"
+                                        class="text-muted hover:text-danger leading-none shrink-0 mt-0.5" title="Удалить">&times;</button>
+                            </div>
+                        </template>
+                        <p x-show="modal.comments.length === 0" class="text-[13px] text-muted">Комментариев пока нет.</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -329,11 +372,14 @@ function board() {
             loading: false,
             taskId: null,
             data: { task: '', project: '', responsible: '', stages: [], history: [] },
+            comments: [],
+            canWrite: false,
         },
         project: {
             open: false,
             form: { title: '', start_date: '', due_date: '', responsible: {} },
         },
+        commentBody: '',
         init() {
             document.addEventListener('ask-complete', (e) => {
                 this.pop = {
@@ -367,6 +413,7 @@ function board() {
                     headers: { 'Accept': 'application/json' },
                 });
                 this.modal.data = await r.json();
+                await this.loadComments();
             } finally {
                 this.modal.loading = false;
             }
@@ -385,11 +432,55 @@ function board() {
             window.completeStage(this.pop.taskId, this.pop.stageId);
             this.keep();
         },
-        keep() {
-            this.pop.ask = false;
+nl2brHtml(text) {
+            return (text || '').replace(/\n/g, '<br>');
         },
-    };
-}
+        async loadComments() {
+            const r = await fetch('/project-tasks/' + this.modal.taskId + '/comments', {
+                headers: { 'Accept': 'application/json' },
+            });
+            const c = await r.json();
+            this.modal.comments = c.comments;
+            this.modal.canWrite = c.can_write;
+        },
+        autoGrow(el) {
+            el.style.height = 'auto';
+            el.style.height = el.scrollHeight + 'px';
+        },
+        async submitComment() {
+            const body = (this.commentBody || '').trim();
+            if (!body) return;
+            const token = document.querySelector('meta[name="csrf-token"]')?.content;
+            await fetch('/comments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token },
+                body: JSON.stringify({ body, project_task_id: this.modal.taskId }),
+            }).then(r => {
+                if (!r.ok) throw new Error('forbidden');
+                return r.json();
+            }).then(() => {
+                this.commentBody = '';
+                const inp = this.$refs.commentInput;
+                if (inp) { inp.style.height = 'auto'; }
+                this.loadComments();
+            }).catch(() => {
+                alert('Комментарий не добавлен. Возможно, недостаточно прав.');
+            });
+        },
+        async removeComment(id) {
+            const token = document.querySelector('meta[name="csrf-token"]')?.content;
+            await fetch('/comments/' + id, {
+                method: 'DELETE',
+                headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': token },
+            }).then(r => {
+                if (!r.ok) throw new Error('forbidden');
+                return r.json();
+            }).then(() => {
+                this.loadComments();
+            }).catch(() => {
+                alert('Удалить комментарий нельзя.');
+            });
+        },
 
 function cardMenu() {
     return {
