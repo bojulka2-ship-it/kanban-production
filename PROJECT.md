@@ -35,17 +35,19 @@
 
 Группа `auth` (все остальное):
 - `POST /logout` — выход (CSRF)
-- `GET /` — главная: список активных проектов (+ модалка «Новый проект», manager)
+- `GET /` — главная: канбан-доска (проекты × 5 этапов × 4 задачи) + модалка «Новый проект» (manager)
 - `GET /projects/{project}/edit` — редактирование проекта (manager)
 - `POST /projects` — создание проекта (manager)
 - `PUT /projects/{project}` — обновление проекта (manager)
 - `POST /projects/{project}/archive` | `restore` — архив/восстановление (manager)
+- `POST /project-tasks/{projectTask}/move` — перенос задачи в этап `{stage_id}` (JSON): целевой stage_status → in_progress, `entered_at=now`, история `stage_started`/`stage_reopened` (если этап вернули из done)
+- `POST /project-tasks/{projectTask}/complete` — завершение этапа `{stage_id}` (JSON): → done, история `stage_completed`
 - `GET /password`, `PUT /password` — смена собственного пароля
 - `GET /users`, `POST /users`, `PATCH /users/{user}` — раздел «Пользователи» (только manager)
 - `POST /users/{user}/reset-password` — сброс пароля пользователя
 - `POST /users/{user}/toggle-active` — деактивация/активация
 
-Права: разделы «Проекты» и «Пользователи» — временная inline-проверка роли (`App\Http\Controllers\Concerns\AuthorizesManager`), этап прав заменит на Policy/Gate.
+Права: управление проектами и пользователями — временная inline-проверка роли (`App\Http\Controllers\Concerns\AuthorizesManager`); перемещения по доске доступны любому авторизованному (проверка «своя задача» — этап прав заменит на Policy/Gate).
 
 Проект: создание/редактирование в транзакции (project + 4 project_tasks), при создании задачи stage_statuses создаются событием `ProjectTask::created` (20 на проект). Валидация — FormRequest (`StoreProjectRequest`, `UpdateProjectRequest`): due_date `after_or_equal:start_date`, ответственность по 4 задачам — только активные пользователи.
 
@@ -73,4 +75,6 @@
 - [x] **Этап 1** — модели, миграции, сиды; `php artisan migrate:fresh --seed` проходит, StageStatus::count() = 80
 - [x] **Этап 2** — авторизация (login/out), layout, смена пароля, раздел «Пользователи», заглушка главной. Проверено: вход/выход, гость → /login, деактивированный не входит («Аккаунт деактивирован»), employee на /users → 403, смена пароля работает
 - [x] **Этап 3** — проекты: создание/редактирование/архив (модалка + страница редактирования). Проверено: создание с 20 stage_statuses, валидация дат, архив прячет/восстанавливает, employee без кнопки и 403
-- [ ] Этап 4 — доска (матрица 5×4), drag-n-drop, история
+- [x] **Этап 4** — канбан-доска 5×4 (sticky-колонка «Проект», карточки со статусами, меню ⋮, модалка-заглушка задачи), drag-n-drop (SortableJS: переносится только in_progress), JSON move/complete с историей. Проверено: 20 ячеек × 80 карточек на доске, перенос → in_progress + дата сохраняется после F5, параллельные in_progress (без «Завершить»), возврат пройденного этапа (stage_reopened), история в task_history (tinker), employee без кнопки/шестерёнки
+- [ ] Этап 5 — полноценная карточка задачи (история, комментарии), фильтры/поиск
+- [ ] Этап прав — Policies/Gate вместо inline-проверок роли

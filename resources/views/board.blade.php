@@ -95,11 +95,11 @@
                                      data-task-id="{{ $task->id }}"
                                      data-stage-id="{{ $stage->id }}"
                                      data-status="{{ $cardStatus }}"
-                                     data-task-name="@js($taskType->name)"
-                                     data-project-name="@js($project->title)"
-                                     data-responsible-name="@js($responsibleName)"
-                                     data-stage-name="@js($stage->name)"
-                                     data-status-label="@js($statusLabels[$cardStatus])"
+                                     data-task-name="{{ $taskType->name }}"
+                                     data-project-name="{{ $project->title }}"
+                                     data-responsible-name="{{ $responsibleName }}"
+                                     data-stage-name="{{ $stage->name }}"
+                                     data-status-label="{{ $statusLabels[$cardStatus] }}"
                                      title="{{ $taskType->name }} — {{ $stage->name }}"
                                      @click="openCard({ task: @js($taskType->name), project: @js($project->title), responsible: @js($responsibleName), stage: @js($stage->name), status: @js($statusLabels[$cardStatus]) })">
                                     <div class="flex items-start justify-between gap-1">
@@ -338,11 +338,11 @@
                 const card = this.$el.closest('.bccard');
                 window.dispatchEvent(new CustomEvent('open-card', {
                     detail: {
-                        task: JSON.parse(card.dataset.taskName),
-                        project: JSON.parse(card.dataset.projectName),
-                        responsible: JSON.parse(card.dataset.responsibleName),
-                        stage: JSON.parse(card.dataset.stageName),
-                        status: JSON.parse(card.dataset.statusLabel),
+                        task: card.dataset.taskName,
+                        project: card.dataset.projectName,
+                        responsible: card.dataset.responsibleName,
+                        stage: card.dataset.stageName,
+                        status: card.dataset.statusLabel,
                     },
                 }));
                 this.open = false;
