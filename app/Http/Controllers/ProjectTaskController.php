@@ -70,6 +70,66 @@ class ProjectTaskController extends Controller
     }
 
     /**
+     * JSON для модалки: задача, проект, ответственный, этапы и лента истории.
+     */
+    public function detail(ProjectTask $projectTask): JsonResponse
+    {
+        $projectTask->load(['taskType', 'project', 'responsible']);
+
+        $stages = $projectTask->stageStatuses()
+            ->with('stage:id,name')
+            ->orderBy('stage_id')
+            ->get()
+            ->map(fn ($ss) => [
+                'id' => $ss->stage_id,
+                'name' => $ss->stage->name,
+                'status' => $ss->status,
+                'entered_at' => $ss->entered_at?->format('d.m.Y'),
+            ])->values();
+
+        $verbs = [
+            'stage_started' => 'начат',
+            'stage_completed' => 'завершён',
+            'stage_reopened' => 'возвращён в работу',
+        ];
+
+        $history = $projectTask->taskHistory()
+            ->with('user:id,name', 'stage:id,name')
+            ->orderByDesc('id')
+            ->get()
+            ->map(function ($h) use ($verbs) {
+                return [
+                    'time' => $h->created_at->format('d.m.Y H:i'),
+                    'user' => $this->shortName($h->user?->name),
+                    'text' => 'этап «' . ($h->stage?->name ?? '—') . '» ' . ($verbs[$h->action] ?? $h->action),
+                ];
+            })->values();
+
+        return response()->json([
+            'id' => $projectTask->id,
+            'task' => $projectTask->taskType->name,
+            'project' => $projectTask->project->title,
+            'responsible' => $projectTask->responsible?->name ?? '—',
+            'stages' => $stages,
+            'history' => $history,
+        ]);
+    }
+
+    /**
+     * Имя в формате «Фамилия И.»
+     */
+    private function shortName(?string $name): string
+    {
+        $parts = preg_split('/\s+/', trim($name ?? ''));
+        $short = $parts[0] ?? '—';
+        if (isset($parts[1])) {
+            $short .= ' ' . mb_substr($parts[1], 0, 1) . '.';
+        }
+
+        return $short;
+    }
+
+    /**
      * Запись в журнал перемещений.
      */
     private function logAction(ProjectTask $projectTask, int $stageId, string $action): void

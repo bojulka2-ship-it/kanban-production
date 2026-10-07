@@ -30,6 +30,7 @@ Route::middleware('auth')->group(function () {
     // Перемещения по доске (права на чужие задачи — этап прав)
     Route::post('/project-tasks/{projectTask}/move', [ProjectTaskController::class, 'move'])->name('project-tasks.move');
     Route::post('/project-tasks/{projectTask}/complete', [ProjectTaskController::class, 'complete'])->name('project-tasks.complete');
+    Route::get('/project-tasks/{projectTask}/detail', [ProjectTaskController::class, 'detail'])->name('project-tasks.detail');
 
     // Смена собственного пароля
     Route::get('/password', [PasswordController::class, 'edit'])->name('password.edit');

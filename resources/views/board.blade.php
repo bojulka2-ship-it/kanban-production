@@ -87,21 +87,14 @@
                                     $task = $project->projectTasks->firstWhere('task_type_id', $taskType->id);
                                     $ss = $task?->stageStatuses->firstWhere('stage_id', $stage->id);
                                     $cardStatus = $ss ? $ss->status : 'pending';
-                                    $statusLabels = ['pending' => 'Ожидание', 'in_progress' => 'В работе', 'done' => 'Готово'];
-                                    $responsibleName = $task?->responsible?->name ?? '—';
                                 @endphp
                                 @if ($task && $ss)
                                 <div class="bccard bc-{{ $cardStatus }} {{ $cardStatus === 'in_progress' ? 'bc-draggable' : 'bc-static' }}"
                                      data-task-id="{{ $task->id }}"
                                      data-stage-id="{{ $stage->id }}"
                                      data-status="{{ $cardStatus }}"
-                                     data-task-name="{{ $taskType->name }}"
-                                     data-project-name="{{ $project->title }}"
-                                     data-responsible-name="{{ $responsibleName }}"
-                                     data-stage-name="{{ $stage->name }}"
-                                     data-status-label="{{ $statusLabels[$cardStatus] }}"
                                      title="{{ $taskType->name }} — {{ $stage->name }}"
-                                     @click="openCard({ task: @js($taskType->name), project: @js($project->title), responsible: @js($responsibleName), stage: @js($stage->name), status: @js($statusLabels[$cardStatus]) })">
+                                     @click="openTask({{ $task->id }})">
                                     <div class="flex items-start justify-between gap-1">
                                         <span class="text-[12px] font-medium leading-tight truncate">{{ $taskType->name }}</span>
 
@@ -135,7 +128,9 @@
                                     <div class="flex items-center justify-between mt-1">
                                         <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-accent/10 text-accent text-[10px] font-bold shrink-0">{{ $task->responsible?->initials }}</span>
                                         <div class="flex items-center gap-1.5">
-                                            <span data-role="date" class="text-[10px] text-muted {{ $cardStatus === 'in_progress' ? '' : 'hidden' }}">{{ $ss->entered_at?->format('d.m') }}</span>
+                                            <span data-role="date" title="История этапа"
+                                                  class="text-[10px] text-muted hover:text-accent cursor-pointer {{ $cardStatus === 'in_progress' ? '' : 'hidden' }}"
+                                                  @click.stop="openTask({{ $task->id }}, 'history')">{{ $ss->entered_at?->format('d.m') }}</span>
                                             <span data-role="check" class="text-[12px] font-bold text-done leading-none {{ $cardStatus === 'done' ? '' : 'hidden' }}">✓</span>
                                         </div>
                                     </div>
@@ -170,38 +165,83 @@
         </div>
     </div>
 
-    {{-- Модалка-заглушка: данные задачи (полную версию сделаем в этапе 5) --}}
-    <div x-show="cardModal.open" x-cloak @keydown.escape.window="cardModal.open = false"
+    {{-- Модалка карточки задачи: вкладки «Этапы» / «История» / «Комментарии» --}}
+    <div x-show="modal.open" x-cloak @keydown.escape.window="modal.open = false"
          class="fixed inset-0 z-40 flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-black/40" @click="cardModal.open = false"></div>
-        <div class="relative bg-white border border-line rounded-xl shadow-lg w-full max-w-md p-6">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-[16px] font-semibold">Карточка</h2>
-                <button type="button" @click="cardModal.open = false" class="text-muted hover:text-ink text-[18px] leading-none">&times;</button>
+        <div class="absolute inset-0 bg-black/40" @click="modal.open = false"></div>
+        <div class="relative bg-white border border-line rounded-xl shadow-lg w-full max-w-xl max-h-[90vh] flex flex-col">
+            <div class="p-5 pb-0 border-b border-line">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <h2 class="text-[16px] font-semibold leading-tight">
+                            <span x-text="modal.data.task"></span> — <span x-text="modal.data.project"></span>
+                        </h2>
+                        <p class="text-[13px] text-muted mt-0.5">
+                            Ответственный: <span class="text-ink font-medium" x-text="modal.data.responsible"></span>
+                        </p>
+                    </div>
+                    <button type="button" @click="modal.open = false" class="text-muted hover:text-ink text-[18px] leading-none">&times;</button>
+                </div>
+
+                {{-- Вкладки --}}
+                <div class="flex gap-4 mt-3 text-[13px] font-medium">
+                    <button type="button" @click="modal.tab = 'stages'"
+                            :class="modal.tab === 'stages' ? 'text-accent border-accent' : 'text-muted border-transparent hover:text-ink'"
+                            class="pb-2 border-b-2">Этапы</button>
+                    <button type="button" @click="modal.tab = 'history'"
+                            :class="modal.tab === 'history' ? 'text-accent border-accent' : 'text-muted border-transparent hover:text-ink'"
+                            class="pb-2 border-b-2">История</button>
+                    <button type="button" @click="modal.tab = 'comments'"
+                            :class="modal.tab === 'comments' ? 'text-accent border-accent' : 'text-muted border-transparent hover:text-ink'"
+                            class="pb-2 border-b-2">Комментарии</button>
+                </div>
             </div>
-            <dl class="space-y-3 text-[13px]">
-                <div class="flex gap-3">
-                    <dt class="w-28 shrink-0 text-muted">Задача</dt>
-                    <dd class="font-medium" x-text="cardModal.task"></dd>
+
+            <div class="p-5 overflow-y-auto flex-1">
+                <div x-show="modal.loading" x-cloak class="py-10 text-center text-[13px] text-muted">Загружаем…</div>
+
+                {{-- Вкладка «Этапы» --}}
+                <div x-show="!modal.loading && modal.tab === 'stages'" x-cloak class="space-y-2">
+                    <template x-for="st in modal.data.stages">
+                        <div class="flex items-center justify-between gap-3 rounded-lg border border-line px-3 py-2">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <span class="text-[13px] font-medium truncate" x-text="st.name"></span>
+                                <span x-show="st.status === 'pending'"
+                                      class="rounded bg-slate-100 text-muted px-2 py-0.5 text-[11px] shrink-0">Ожидает</span>
+                                <span x-show="st.status === 'in_progress'"
+                                      class="rounded bg-accent/10 text-accent px-2 py-0.5 text-[11px] shrink-0">В работе · <span x-text="st.entered_at"></span></span>
+                                <span x-show="st.status === 'done'"
+                                      class="rounded bg-green-50 text-done px-2 py-0.5 text-[11px] shrink-0">Завершено</span>
+                            </div>
+                            <div class="flex gap-1.5 shrink-0">
+                                <button x-show="st.status === 'pending'" type="button" @click="doStage(st, 'start')"
+                                        class="rounded-lg border border-accent/40 text-accent px-2.5 py-1 text-[12px] font-medium hover:border-accent">Начать</button>
+                                <button x-show="st.status === 'in_progress'" type="button" @click="doStage(st, 'finish')"
+                                        class="rounded-lg border border-line px-2.5 py-1 text-[12px] font-medium hover:bg-page">Завершить</button>
+                                <button x-show="st.status === 'done'" type="button" @click="doStage(st, 'reopen')"
+                                        class="rounded-lg border border-accent/40 text-accent px-2.5 py-1 text-[12px] font-medium hover:border-accent">Вернуть в работу</button>
+                            </div>
+                        </div>
+                    </template>
                 </div>
-                <div class="flex gap-3">
-                    <dt class="w-28 shrink-0 text-muted">Проект</dt>
-                    <dd x-text="cardModal.project"></dd>
+
+                {{-- Вкладка «История» --}}
+                <div x-show="!modal.loading && modal.tab === 'history'" x-cloak class="space-y-1.5">
+                    <template x-for="h in modal.data.history">
+                        <div class="flex gap-2 text-[13px] leading-snug">
+                            <span class="text-muted whitespace-nowrap" x-text="h.time"></span>
+                            <span class="text-muted shrink-0" x-text="h.user + ':'"></span>
+                            <span class="min-w-0" x-text="h.text"></span>
+                        </div>
+                    </template>
+                    <p x-show="modal.data.history.length === 0" class="text-[13px] text-muted">Пока нет записей.</p>
                 </div>
-                <div class="flex gap-3">
-                    <dt class="w-28 shrink-0 text-muted">Ответственный</dt>
-                    <dd x-text="cardModal.responsible"></dd>
+
+                {{-- Вкладка «Комментарии» — заглушка до этапа 6 --}}
+                <div x-show="!modal.loading && modal.tab === 'comments'" x-cloak class="text-[13px] text-muted">
+                    Скоро здесь будут комментарии.
                 </div>
-                <div class="flex gap-3">
-                    <dt class="w-28 shrink-0 text-muted">Этап</dt>
-                    <dd x-text="cardModal.stage"></dd>
-                </div>
-                <div class="flex gap-3">
-                    <dt class="w-28 shrink-0 text-muted">Состояние</dt>
-                    <dd x-text="cardModal.status"></dd>
-                </div>
-            </dl>
-            <p class="mt-5 text-[12px] text-muted">Полная карточка с историей — в следующем этапе.</p>
+            </div>
         </div>
     </div>
 
@@ -280,75 +320,99 @@
 </style>
 
 <script>
-    function board() {
-        return {
-            pop: { ask: false, taskId: null, stageId: null, stageName: '', x: 0, y: 0 },
-            cardModal: { open: false, task: '', project: '', responsible: '', stage: '', status: '' },
-            project: {
-                open: false,
-                form: { title: '', start_date: '', due_date: '', responsible: {} },
-            },
-            init() {
-                document.addEventListener('ask-complete', (e) => {
-                    this.pop = {
-                        ask: true,
-                        taskId: e.detail.taskId,
-                        stageId: e.detail.stageId,
-                        stageName: e.detail.stageName,
-                        x: e.detail.x,
-                        y: e.detail.y,
-                    };
-                });
-                document.addEventListener('open-card', (e) => {
-                    this.cardModal = { open: true, ...e.detail };
-                });
-            },
-            openCreate() {
-                this.project.form = { title: '', start_date: '', due_date: '', responsible: {} };
-                this.project.open = true;
-            },
-            openCard(data) {
-                this.cardModal = { open: true, task: data.task, project: data.project, responsible: data.responsible, stage: data.stage, status: data.status };
-            },
-            finishPop() {
-                if (!this.pop.taskId) return;
-                window.completeStage(this.pop.taskId, this.pop.stageId);
-                this.keep();
-            },
-            keep() {
-                this.pop.ask = false;
-            },
-        };
-    }
-
-    function cardMenu() {
-        return {
+function board() {
+    return {
+        pop: { ask: false, taskId: null, stageId: null, stageName: '', x: 0, y: 0 },
+        modal: {
             open: false,
-            moveTo(stageId) {
-                const taskId = this.$el.closest('.bccard').dataset.taskId;
-                window.moveTask(taskId, stageId, {});
-                this.open = false;
-            },
-            finish() {
-                const card = this.$el.closest('.bccard');
-                window.completeStage(card.dataset.taskId, card.dataset.stageId);
-                this.open = false;
-            },
-            showCard() {
-                const card = this.$el.closest('.bccard');
-                window.dispatchEvent(new CustomEvent('open-card', {
-                    detail: {
-                        task: card.dataset.taskName,
-                        project: card.dataset.projectName,
-                        responsible: card.dataset.responsibleName,
-                        stage: card.dataset.stageName,
-                        status: card.dataset.statusLabel,
-                    },
-                }));
-                this.open = false;
-            },
-        };
-    }
+            tab: 'stages',
+            loading: false,
+            taskId: null,
+            data: { task: '', project: '', responsible: '', stages: [], history: [] },
+        },
+        project: {
+            open: false,
+            form: { title: '', start_date: '', due_date: '', responsible: {} },
+        },
+        init() {
+            document.addEventListener('ask-complete', (e) => {
+                this.pop = {
+                    ask: true,
+                    taskId: e.detail.taskId,
+                    stageId: e.detail.stageId,
+                    stageName: e.detail.stageName,
+                    x: e.detail.x,
+                    y: e.detail.y,
+                };
+            });
+            document.addEventListener('open-task', (e) => {
+                this.openTask(e.detail.taskId, e.detail.tab);
+            });
+        },
+        openCreate() {
+            this.project.form = { title: '', start_date: '', due_date: '', responsible: {} };
+            this.project.open = true;
+        },
+        async openTask(taskId, tab) {
+            this.modal.tab = tab || 'stages';
+            this.modal.taskId = taskId;
+            this.modal.open = true;
+            await this.loadDetail();
+        },
+        async loadDetail() {
+            if (!this.modal.taskId) return;
+            this.modal.loading = true;
+            try {
+                const r = await fetch('/project-tasks/' + this.modal.taskId + '/detail', {
+                    headers: { 'Accept': 'application/json' },
+                });
+                this.modal.data = await r.json();
+            } finally {
+                this.modal.loading = false;
+            }
+        },
+        async doStage(stage, action) {
+            // Здесь те же API, что и drag/меню ⋮: start/reopen → move, finish → complete
+            if (action === 'finish') {
+                await window.completeStage(this.modal.taskId, stage.id);
+            } else {
+                await window.moveTask(this.modal.taskId, stage.id, {});
+            }
+            await this.loadDetail();
+        },
+        finishPop() {
+            if (!this.pop.taskId) return;
+            window.completeStage(this.pop.taskId, this.pop.stageId);
+            this.keep();
+        },
+        keep() {
+            this.pop.ask = false;
+        },
+    };
+}
+
+function cardMenu() {
+    return {
+        open: false,
+        moveTo(stageId) {
+            const taskId = this.$el.closest('.bccard').dataset.taskId;
+            window.moveTask(taskId, stageId, {});
+            this.open = false;
+        },
+        finish() {
+            const card = this.$el.closest('.bccard');
+            window.completeStage(card.dataset.taskId, card.dataset.stageId);
+            this.open = false;
+        },
+        showCard() {
+            const card = this.$el.closest('.bccard');
+            window.dispatchEvent(new CustomEvent('open-task', {
+                detail: { taskId: card.dataset.taskId },
+            }));
+            this.open = false;
+        },
+    };
+}
 
     let dragState = null;
 
