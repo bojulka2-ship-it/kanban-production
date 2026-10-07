@@ -35,13 +35,19 @@
 
 Группа `auth` (все остальное):
 - `POST /logout` — выход (CSRF)
-- `GET /` — главная (временная заглушка «Здесь будет доска»)
+- `GET /` — главная: список активных проектов (+ модалка «Новый проект», manager)
+- `GET /projects/{project}/edit` — редактирование проекта (manager)
+- `POST /projects` — создание проекта (manager)
+- `PUT /projects/{project}` — обновление проекта (manager)
+- `POST /projects/{project}/archive` | `restore` — архив/восстановление (manager)
 - `GET /password`, `PUT /password` — смена собственного пароля
 - `GET /users`, `POST /users`, `PATCH /users/{user}` — раздел «Пользователи» (только manager)
 - `POST /users/{user}/reset-password` — сброс пароля пользователя
 - `POST /users/{user}/toggle-active` — деактивация/активация
 
-Права: раздел «Пользователи» — временная inline-проверка роли в контроллере (этап прав заменит на Policy/Gate).
+Права: разделы «Проекты» и «Пользователи» — временная inline-проверка роли (`App\Http\Controllers\Concerns\AuthorizesManager`), этап прав заменит на Policy/Gate.
+
+Проект: создание/редактирование в транзакции (project + 4 project_tasks), при создании задачи stage_statuses создаются событием `ProjectTask::created` (20 на проект). Валидация — FormRequest (`StoreProjectRequest`, `UpdateProjectRequest`): due_date `after_or_equal:start_date`, ответственность по 4 задачам — только активные пользователи.
 
 ## Соглашения
 
@@ -66,4 +72,5 @@
 
 - [x] **Этап 1** — модели, миграции, сиды; `php artisan migrate:fresh --seed` проходит, StageStatus::count() = 80
 - [x] **Этап 2** — авторизация (login/out), layout, смена пароля, раздел «Пользователи», заглушка главной. Проверено: вход/выход, гость → /login, деактивированный не входит («Аккаунт деактивирован»), employee на /users → 403, смена пароля работает
-- [ ] Этап 3 — доска (матрица 5×4), drag-n-drop, история
+- [x] **Этап 3** — проекты: создание/редактирование/архив (модалка + страница редактирования). Проверено: создание с 20 stage_statuses, валидация дат, архив прячет/восстанавливает, employee без кнопки и 403
+- [ ] Этап 4 — доска (матрица 5×4), drag-n-drop, история

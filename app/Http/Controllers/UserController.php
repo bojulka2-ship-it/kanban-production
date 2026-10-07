@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\UserRole;
+use App\Http\Controllers\Concerns\AuthorizesManager;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -10,6 +11,7 @@ use Illuminate\View\View;
 
 class UserController extends Controller
 {
+    use AuthorizesManager;
     /**
      * Список пользователей (только руководитель).
      */
@@ -107,13 +109,5 @@ class UserController extends Controller
         $user->update(['is_active' => ! $user->is_active]);
 
         return back()->with('success', $user->is_active ? 'Пользователь активирован' : 'Пользователь деактивирован');
-    }
-
-    /**
-     * Временная inline-проверка роли (этап прав заменит на Policy).
-     */
-    private function authorizeManager(): void
-    {
-        abort_unless(auth()->user()->role === UserRole::Manager, 403);
     }
 }
