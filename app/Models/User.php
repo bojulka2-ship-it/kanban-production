@@ -53,6 +53,20 @@ class User extends Authenticatable
     }
 
     /**
+     * Инициалы для карточки доски (первые буквы имени и фамилии).
+     */
+    public function getInitialsAttribute(): string
+    {
+        $parts = preg_split('/\s+/', trim($this->name ?? ''));
+        $out = '';
+        foreach (array_slice($parts ?: [], 0, 2) as $part) {
+            $out .= mb_strtoupper(mb_substr($part, 0, 1));
+        }
+
+        return $out !== '' ? $out : '?';
+    }
+
+    /**
      * Задачи, за которые пользователь отвечает.
      */
     public function projectTasks(): HasMany

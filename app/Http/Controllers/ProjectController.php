@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\AuthorizesManager;
 use App\Http\Requests\StoreProjectRequest;
 use App\Http\Requests\UpdateProjectRequest;
 use App\Models\Project;
+use App\Models\Stage;
 use App\Models\TaskType;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -17,16 +18,17 @@ class ProjectController extends Controller
     use AuthorizesManager;
 
     /**
-     * Главная: список активных проектов (архив скрыт по умолчанию).
+     * Главная: канбан-доска-матрица (активные проекты, архив скрыт по умолчанию).
      */
     public function index(): View
     {
-        return view('home', [
-            'projects' => Project::with('projectTasks.responsible')
+        return view('board', [
+            'projects' => Project::with(['projectTasks.responsible', 'projectTasks.stageStatuses'])
                 ->where('is_archived', false)
                 ->orderBy('start_date')
                 ->get(),
             'activeUsers' => $this->activeUsers(),
+            'stages' => Stage::orderBy('sort_order')->get(),
             'taskTypes' => TaskType::orderBy('sort_order')->get(),
         ]);
     }

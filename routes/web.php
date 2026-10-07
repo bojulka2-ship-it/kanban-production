@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\PasswordController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\ProjectTaskController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -16,7 +17,7 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-    // Главная — список проектов (доска появится на следующем этапе)
+    // Главная — канбан-доска (матрица проектов × этапов)
     Route::get('/', [ProjectController::class, 'index'])->name('home');
 
     // Проекты (создание/редактирование — только руководитель, проверка в контроллере)
@@ -25,6 +26,10 @@ Route::middleware('auth')->group(function () {
     Route::put('/projects/{project}', [ProjectController::class, 'update'])->name('projects.update');
     Route::post('/projects/{project}/archive', [ProjectController::class, 'archive'])->name('projects.archive');
     Route::post('/projects/{project}/restore', [ProjectController::class, 'restore'])->name('projects.restore');
+
+    // Перемещения по доске (права на чужие задачи — этап прав)
+    Route::post('/project-tasks/{projectTask}/move', [ProjectTaskController::class, 'move'])->name('project-tasks.move');
+    Route::post('/project-tasks/{projectTask}/complete', [ProjectTaskController::class, 'complete'])->name('project-tasks.complete');
 
     // Смена собственного пароля
     Route::get('/password', [PasswordController::class, 'edit'])->name('password.edit');
