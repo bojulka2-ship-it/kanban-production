@@ -2,9 +2,10 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\UserRole;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -22,6 +23,8 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role',
+        'is_active',
     ];
 
     /**
@@ -44,6 +47,32 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'role' => UserRole::class,
+            'is_active' => 'boolean',
         ];
+    }
+
+    /**
+     * Задачи, за которые пользователь отвечает.
+     */
+    public function projectTasks(): HasMany
+    {
+        return $this->hasMany(ProjectTask::class, 'responsible_id');
+    }
+
+    /**
+     * Записи журнала перемещений пользователя.
+     */
+    public function taskHistory(): HasMany
+    {
+        return $this->hasMany(TaskHistory::class);
+    }
+
+    /**
+     * Комментарии пользователя.
+     */
+    public function comments(): HasMany
+    {
+        return $this->hasMany(Comment::class);
     }
 }
