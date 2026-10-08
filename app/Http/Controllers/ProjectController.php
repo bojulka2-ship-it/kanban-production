@@ -29,7 +29,12 @@ class ProjectController extends Controller
             'archive' => $request->query('archive') === '1',
         ];
 
-        $query = Project::with(['projectTasks.responsible', 'projectTasks.stageStatuses', 'projectTasks.taskType', 'projectTasks.project'])
+        $query = Project::with([
+                'projectTasks' => function ($q) {
+                    $q->with(['responsible', 'stageStatuses', 'taskType', 'project'])
+                        ->withCount(['items', 'items as items_done_count' => fn ($qq) => $qq->where('is_done', true)]);
+                },
+            ])
             ->where('is_archived', $filters['archive'])
             ->orderByDesc('created_at')
             ->orderByDesc('id')

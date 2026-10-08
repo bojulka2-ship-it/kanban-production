@@ -230,6 +230,24 @@
                                         </div>
                                     </div>
 
+                                    {{-- Трекер (этап 11): прогресс чек-листа «N/M» и точка дедлайна --}}
+                                    @php
+                                        $taskItemsTotal = $task->items_count ?? 0;
+                                        $taskItemsDone = $task->items_done_count ?? 0;
+                                        $taskDueOverdue = $task->due_date && $task->due_date->copy()->startOfDay()->lt(now()->startOfDay());
+                                    @endphp
+                                    @if ($taskItemsTotal > 0 || $task->due_date)
+                                        <div class="flex items-center gap-1.5 mt-0.5">
+                                            @if ($taskItemsTotal > 0)
+                                                <span data-checklist class="text-[10px] text-muted" title="Выполнено пунктов чек-листа">☑ {{ $taskItemsDone }}/{{ $taskItemsTotal }}</span>
+                                            @endif
+                                            @if ($task->due_date)
+                                                <span title="Дедлайн задачи: {{ $task->due_date->format('d.m.Y') }}"
+                                                      class="inline-block w-1.5 h-1.5 rounded-full shrink-0 {{ $taskDueOverdue ? 'bg-danger' : 'bg-slate-300' }}"></span>
+                                            @endif
+                                        </div>
+                                    @endif
+
                                     <div class="flex items-center justify-between mt-1">
                                         <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-accent/10 text-accent text-[10px] font-bold shrink-0">{{ $task->responsible?->initials }}</span>
                                         <div class="flex items-center gap-1.5">
@@ -399,6 +417,13 @@
                                             <span class="text-muted">{{ $task->responsible?->name }}</span>
                                             <span data-role="date" class="{{ $cardStatus === 'in_progress' ? '' : 'hidden' }}">{{ $ss->entered_at?->format('d.m.Y') }}</span>
                                             <span data-role="check" class="font-bold text-done {{ $cardStatus === 'done' ? '' : 'hidden' }}">✓</span>
+                                            @if (($task->items_count ?? 0) > 0)
+                                                <span data-checklist class="text-muted">☑ {{ $task->items_done_count ?? 0 }}/{{ $task->items_count }}</span>
+                                            @endif
+                                            @if ($task->due_date)
+                                                <span title="Дедлайн задачи: {{ $task->due_date->format('d.m.Y') }}"
+                                                      class="inline-block w-1.5 h-1.5 rounded-full shrink-0 {{ $task->due_date->copy()->startOfDay()->lt(now()->startOfDay()) ? 'bg-danger' : 'bg-slate-300' }}"></span>
+                                            @endif
                                         </span>
                                     </button>
 
@@ -469,6 +494,57 @@
                         <p class="text-[13px] text-muted mt-0.5">
                             Ответственный: <span class="text-ink font-medium" x-text="modal.data.responsible"></span>
                         </p>
+
+                        {{-- Бейджи трекера: приоритет и дедлайн (этап 11) --}}
+                        <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                            <template x-if="modal.data.priority === 'high'">
+                                <span class="rounded bg-red-50 text-danger font-medium px-2 py-0.5 text-[11px]">Высокий приоритет</span>
+                            </template>
+                            <template x-if="modal.data.priority === 'low'">
+                                <span class="rounded bg-slate-100 text-muted font-medium px-2 py-0.5 text-[11px]">Низкий приоритет</span>
+                            </template>
+                            <template x-if="modal.data.due_date">
+                                <span class="rounded px-2 py-0.5 text-[11px] font-medium"
+                                      :class="dueToneClass(modal.data.due)">
+                                    Дедлайн: <span x-text="modal.data.due_date"></span><template x-if="modal.data.due && modal.data.due.label"><span> · <span x-text="modal.data.due.label"></span></span></template>
+                                </span>
+                            </template>
+                        </div>
+
+                        {{-- Раскрывающийся блок «Описание» --}}
+                        <div class="mt-2">
+                            <button type="button" @click="descOpen = !descOpen"
+                                    class="text-[12px] font-medium text-accent hover:underline">
+                                <span x-text="descOpen ? 'Скрыть описание' : 'Описание'"></span>
+                            </button>
+                            <div x-show="descOpen" x-cloak class="mt-2">
+                                <template x-if="modal.data.can_edit">
+                                    <div class="space-y-2">
+                                        <textarea rows="3" x-model="descText" maxlength="5000"
+                                                  placeholder="Описание задачи…"
+                                                  class="w-full rounded-lg border border-line px-3 py-2 text-[13px] resize-y focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"></textarea>
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <input type="date" x-model="dueText" title="Дедлайн задачи"
+                                                   class="rounded-lg border border-line px-2.5 py-1.5 text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent">
+                                            <select x-model="priorityText" title="Приоритет"
+                                                    class="rounded-lg border border-line px-2.5 py-1.5 text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent">
+                                                <option value="low">Низкий</option>
+                                                <option value="normal">Обычный</option>
+                                                <option value="high">Высокий</option>
+                                            </select>
+                                            <button type="button" @click="saveTracker()"
+                                                    class="rounded-lg bg-accent hover:bg-accent-hover text-white text-[13px] font-medium px-3 py-1.5 transition-colors">
+                                                Сохранить
+                                            </button>
+                                        </div>
+                                    </div>
+                                </template>
+                                <template x-if="!modal.data.can_edit">
+                                    <p class="text-[13px] text-muted whitespace-pre-line break-words"
+                                       x-text="(modal.data.description && modal.data.description.length) ? modal.data.description : 'Описание не задано.'"></p>
+                                </template>
+                            </div>
+                        </div>
                     </div>
                     <button type="button" @click="modal.open = false" class="text-muted hover:text-ink text-[18px] leading-none">&times;</button>
                 </div>
@@ -478,6 +554,9 @@
                     <button type="button" @click="modal.tab = 'stages'"
                             :class="modal.tab === 'stages' ? 'text-accent border-accent' : 'text-muted border-transparent hover:text-ink'"
                             class="pb-2 border-b-2">Этапы</button>
+                    <button type="button" @click="modal.tab = 'checklist'"
+                            :class="modal.tab === 'checklist' ? 'text-accent border-accent' : 'text-muted border-transparent hover:text-ink'"
+                            class="pb-2 border-b-2">Чек-лист<template x-if="modal.data.items && modal.data.items.total"><span class="ml-1 text-[11px] text-muted" x-text="'(' + modal.data.items.done + '/' + modal.data.items.total + ')'"></span></template></button>
                     <button type="button" @click="modal.tab = 'history'"
                             :class="modal.tab === 'history' ? 'text-accent border-accent' : 'text-muted border-transparent hover:text-ink'"
                             class="pb-2 border-b-2">История</button>
@@ -513,6 +592,44 @@
                             </div>
                         </div>
                     </template>
+                </div>
+
+                {{-- Вкладка «Чек-лист» --}}
+                <div x-show="!modal.loading && modal.tab === 'checklist'" x-cloak>
+                    <template x-if="modal.data.items && modal.data.items.can_manage">
+                        <div class="flex gap-2 mb-3">
+                            <input type="text" x-model="newItem" @keydown.enter.prevent="addItem()" maxlength="255"
+                                   placeholder="Новый пункт…"
+                                   class="flex-1 rounded-lg border border-line px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent">
+                            <button type="button" @click="addItem()"
+                                    class="rounded-lg border border-accent/40 text-accent px-3 py-2 text-[13px] font-medium hover:border-accent">
+                                Добавить
+                            </button>
+                        </div>
+                    </template>
+
+                    <div class="space-y-1.5">
+                        <template x-for="it in (modal.data.items ? modal.data.items.items : [])" :key="it.id">
+                            <div class="flex items-center gap-2.5 rounded-lg border border-line px-3 py-2">
+                                <input type="checkbox" :checked="it.is_done"
+                                       @change="toggleItem(it)"
+                                       :disabled="!(modal.data.items && modal.data.items.can_manage)"
+                                       class="w-4 h-4 shrink-0 rounded border-line text-accent focus:ring-accent/30">
+                                <span class="flex-1 text-[13px] break-words"
+                                      :class="it.is_done ? 'line-through text-muted' : 'text-ink'"
+                                      x-text="it.title"></span>
+                                <button x-show="modal.data.items && modal.data.items.can_manage" type="button"
+                                        @click="removeItem(it.id)"
+                                        class="text-muted hover:text-danger leading-none shrink-0" title="Удалить">&times;</button>
+                            </div>
+                        </template>
+                    </div>
+                    <p x-show="modal.data.items && modal.data.items.total === 0" class="text-[13px] text-muted">
+                        Чек-лист пуст.
+                    </p>
+                    <p x-show="modal.data.items && modal.data.items.can_manage === false" class="text-[12px] text-muted mt-2">
+                        Отмечать пункты может ответственный или руководитель.
+                    </p>
                 </div>
 
                 {{-- Вкладка «История» --}}
@@ -664,10 +781,20 @@ function board() {
             tab: 'stages',
             loading: false,
             taskId: null,
-            data: { task: '', project: '', responsible: '', can_move: false, stages: [], history: [] },
+            data: {
+                task: '', project: '', responsible: '', can_move: false, stages: [], history: [],
+                description: null, due_date: null, due_date_raw: null, due: null, priority: 'normal',
+                can_edit: false, items: { items: [], done: 0, total: 0, can_manage: false },
+            },
             comments: [],
             canWrite: false,
         },
+        // Поля трекера (этап 11)
+        descOpen: false,
+        descText: '',
+        dueText: '',
+        priorityText: 'normal',
+        newItem: '',
         project: {
             open: false,
             form: { title: '', start_date: '', due_date: '', responsible: {} },
@@ -714,6 +841,9 @@ function board() {
                     headers: { 'Accept': 'application/json' },
                 });
                 this.modal.data = await r.json();
+                this.descText = this.modal.data.description || '';
+                this.dueText = this.modal.data.due_date_raw || '';
+                this.priorityText = this.modal.data.priority || 'normal';
                 await this.loadComments();
             } finally {
                 this.modal.loading = false;
@@ -735,6 +865,76 @@ function board() {
         },
         keep() {
             this.pop.ask = false;
+        },
+        // --- Трекер задачи (этап 11) ---
+        dueToneClass(due) {
+            if (!due) return 'bg-slate-100 text-muted';
+            if (due.tone === 'overdue') return 'bg-red-50 text-danger';
+            if (due.tone === 'soon') return 'bg-amber-50 text-warn';
+            return 'bg-slate-100 text-muted';
+        },
+        async saveTracker() {
+            await this.trackerRequest('PATCH', '/project-tasks/' + this.modal.taskId, {
+                description: this.descText || null,
+                due_date: this.dueText || null,
+                priority: this.priorityText,
+            }, 'Не удалось сохранить. Недостаточно прав.');
+        },
+        async addItem() {
+            const title = (this.newItem || '').trim();
+            if (!title) return;
+            const ok = await this.itemRequest('POST', '/project-tasks/' + this.modal.taskId + '/items', { title });
+            if (ok) this.newItem = '';
+        },
+        async toggleItem(it) {
+            await this.itemRequest('PATCH', '/project-tasks/' + this.modal.taskId + '/items/' + it.id, { is_done: !it.is_done });
+        },
+        async removeItem(id) {
+            await this.itemRequest('DELETE', '/project-tasks/' + this.modal.taskId + '/items/' + id);
+        },
+        async itemRequest(method, url, body) {
+            const token = document.querySelector('meta[name="csrf-token"]')?.content;
+            const opts = { method, headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': token } };
+            if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+            try {
+                const r = await fetch(url, opts);
+                if (!r.ok) throw new Error('forbidden');
+                this.modal.data.items = await r.json();
+                this.loadBoardCard(this.modal.taskId);
+                return true;
+            } catch (e) {
+                alert('Не удалось изменить чек-лист. Недостаточно прав.');
+                return false;
+            }
+        },
+        async trackerRequest(method, url, body, errorText) {
+            const token = document.querySelector('meta[name="csrf-token"]')?.content;
+            try {
+                const r = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token },
+                    body: JSON.stringify(body),
+                });
+                if (!r.ok) throw new Error('forbidden');
+                await this.loadDetail();
+                this.loadBoardCard(this.modal.taskId);
+            } catch (e) {
+                alert(errorText);
+            }
+        },
+        // Обновить индикаторы чек-листа на карточке доски (этап 11)
+        loadBoardCard(taskId) {
+            if (!this.modal.data.items) return;
+            const done = this.modal.data.items.done;
+            const total = this.modal.data.items.total;
+            document.querySelectorAll('.bccard[data-task-id="' + taskId + '"] [data-checklist]').forEach((badge) => {
+                if (total > 0) {
+                    badge.textContent = '☑ ' + done + '/' + total;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            });
         },
 nl2brHtml(text) {
             // Тело уже экранировано на сервере (CommentController::formatted) — только переносы строк

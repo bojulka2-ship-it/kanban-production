@@ -18,12 +18,13 @@
 | `projects` | title(100), start_date, due_date, status(active/paused/completed/cancelled), is_archived | Проекты |
 | `stages` | name, sort_order | Справочник этапов (5): Планирование, Закупка, Производство, Контроль качества, Отгрузка |
 | `task_types` | name, sort_order | Справочник задач (4): Конструкторская документация, Материалы и комплектующие, Изготовление, Испытания и приёмка |
-| `project_tasks` | project_id, task_type_id, responsible_id, **unique(project_id, task_type_id)** | 4 задачи проекта |
+| `project_tasks` | project_id, task_type_id, responsible_id, description, due_date, priority(low/normal/high, default normal), **unique(project_id, task_type_id)** | 4 задачи проекта |
 | `stage_statuses` | project_task_id, stage_id, status(pending/in_progress/done), entered_at, **unique(project_task_id, stage_id)** | Карточка задачи в колонке этапа (матрица 4×5 = 20 на проект) |
 | `task_history` | project_task_id, user_id, stage_id, action(stage_started/stage_completed/stage_reopened) | Журнал перемещений |
 | `comments` | project_task_id, user_id, body | Комментарии к задаче |
+| `task_items` | project_task_id, title, is_done(default false), sort_order | Пункты чек-листа задачи (этап 11) |
 
-Отношения: Project → hasMany ProjectTask → hasMany StageStatus / TaskHistory / Comment; ProjectTask belongsTo TaskType, User (responsible); StageStatus/TaskHistory belongsTo Stage.
+Отношения: Project → hasMany ProjectTask → hasMany StageStatus / TaskHistory / Comment / TaskItem; ProjectTask belongsTo TaskType, User (responsible); StageStatus/TaskHistory belongsTo Stage.
 
 **Правило:** при создании `project_task` событие `created` автоматически создаёт 5 `stage_statuses` со статусом `pending` (`App\Models\ProjectTask::booted`).
 
@@ -40,6 +41,12 @@
 - `POST /projects` — создание проекта (manager)
 - `PUT /projects/{project}` — обновление проекта (manager)
 - `POST /projects/{project}/archive` | `restore` — архив/восстановление (manager)
+- `GET /project-tasks/{id}/detail` — JSON модалки задачи: этапы, история, ответственный, поля трекера (описание, дедлайн + метка просрочки, приоритет, флаги `can_edit`/`can_move`) и вложенный блок `items` (чек-лист: пункты, `done`/`total`, `can_manage`)
+- `PATCH /project-tasks/{id}` — описание/дедлайн/приоритет задачи (этап 11), доступ: ответственный или manager
+- `GET /project-tasks/{id}/items` — JSON чек-листа (все авторизованные)
+- `POST /project-tasks/{id}/items` — добавить пункт (`{title}`), ответственный или manager
+- `PATCH /project-tasks/{id}/items/{item}` — отметка/переименование пункта (`{is_done, title, sort_order}`)
+- `DELETE /project-tasks/{id}/items/{item}` — удалить пункт
 - `GET /project-tasks/{id}/comments` — JSON ленты комментариев (автор/инициалы/цвет, дата, тело, `canDelete`), `can_write`, `is_manager`, `me`
 - `POST /comments` — создать комментарий (требует JSON `{project_task_id, body}`), доступ: ответственный или manager (`ProjectTaskPolicy::comment`)
 - `DELETE /comments/{id}` — удалить (автор комментария или manager)
@@ -61,6 +68,9 @@
 | Чтение комментариев | ✓ | ✓ | ✓ |
 | Создание комментария | ✓ | ✓ (только к своей задаче) | — (403) |
 | Удаление комментария | ✓ (любого) | только свой комментарий | только свой комментарий |
+| Редактирование полей задачи: описание / дедлайн / приоритет (этап 11) | ✓ | ✓ (только своя задача) | — (403) |
+| Чек-лист: чтение пунктов (этап 11) | ✓ | ✓ | ✓ |
+| Чек-лист: добавление / отметка / удаление (этап 11) | ✓ | ✓ (только своя задача) | — (403) |
 | Раздел «Пользователи» (создание, правка, сброс пароля, деактивация) | ✓ | — | — (403) |
 
 Проект: создание/редактирование в транзакции (project + 4 project_tasks), при создании задачи stage_statuses создаются событием `ProjectTask::created` (20 на проект). Валидация — FormRequest (`StoreProjectRequest`, `UpdateProjectRequest`): due_date `after_or_equal:start_date`, ответственность по 4 задачам — только активные пользователи.
@@ -83,6 +93,7 @@
   3. «Ремонт конвейера №2» — просроченный (due_date −5 дней, статус active)
   4. «Партия кронштейнов (закрыта)» — завершённый (все этапы done, статус completed)
 - 80 stage_statuses (4 × 4 × 5), task_history отражает путь каждой задачи
+- Трекер (этап 11, `TaskTrackerSeeder`): проект «Серийные корпусные детали» — описание, дедлайны на 2 задачах (одна просрочена), приоритеты (high/low/normal), чек-листы 3–5 пунктов с разными `is_done`
 
 ## Статус работ
 
@@ -108,3 +119,14 @@
 - **Раздел «Пользователи»:** добавлена ссылка в шапке (только manager); починены кнопки «Редактировать»/«Сбросить пароль» — значения вынесены в `data-*` на `<tr>` и читаются через `$el.closest('tr').dataset` (раньше `@json` в `@click` ломал атрибут).
 - **UI:** иконка редактирования проекта — «карандаш» вместо «буфера обмена»; кнопка сброса фильтров — подписанная «Сбросить» с иконкой.
 - **Ширина контейнера:** контейнер настраивается по странице через `@yield('container', 'max-w-7xl')`; доска использует `max-w-[1920px]` — на 1920 видна вся матрица без горизонтального скролла.
+
+## Часть II — Трекер задач
+
+> По ТЗ `input/VIBECODE.md` этапы 11–12 начинаются после этапа 10 (деплой). Этап 10 отложен; трекер реализуется по решению заказчика.
+
+- [x] **Этап 11** — дедлайны, приоритеты, чек-листы (внутри модалки задачи):
+  - Миграции: `project_tasks` + `description`/`due_date`/`priority`; таблица `task_items` (только добавление, `migrate` без `fresh` — демо-данные живы).
+  - Модалка: шапка — бейдж приоритета (Высокий #DC2626 / Низкий #64748B) и бейдж дедлайна с просрочкой (логика этапа 8), раскрывающийся блок «Описание»; новая вкладка «Чек-лист» (чекбоксы, добавление по Enter, удаление крестиком, прогресс «N/M» в шапке вкладки).
+  - Права: `PATCH /project-tasks/{id}` и управление `task_items` — ответственный или manager (`ProjectTaskPolicy::update`/`manageItems`), иначе 403; архив — read-only.
+  - Доска: на карточке прогресс чек-листа «☑ N/M» и точка дедлайна (красная при просрочке), синхронизируется без перезагрузки.
+  - Проверено: 10 фича-тестов (`TaskTrackerTest`) + браузер (CDP): карточка «☑ 2/4» и красная точка, после отметки — «1/4», **после F5 состояние сохранилось** (карточка = вкладке), 403 постороннему

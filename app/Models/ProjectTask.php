@@ -15,6 +15,13 @@ class ProjectTask extends Model
         'project_id',
         'task_type_id',
         'responsible_id',
+        'description',
+        'due_date',
+        'priority',
+    ];
+
+    protected $casts = [
+        'due_date' => 'date',
     ];
 
     /**
@@ -73,5 +80,13 @@ class ProjectTask extends Model
     public function comments(): HasMany
     {
         return $this->hasMany(Comment::class);
+    }
+
+    /**
+     * Пункты чек-листа задачи (этап 11).
+     */
+    public function items(): HasMany
+    {
+        return $this->hasMany(TaskItem::class)->orderBy('sort_order')->orderBy('id');
     }
 }

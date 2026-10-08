@@ -34,6 +34,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/project-tasks/{projectTask}/detail', [ProjectTaskController::class, 'detail'])->name('project-tasks.detail');
     Route::get('/project-tasks/{projectTask}/comments', [CommentController::class, 'index'])->name('project-tasks.comments');
 
+    // Трекер задачи (этап 11): поля задачи (описание/дедлайн/приоритет) и чек-лист
+    Route::patch('/project-tasks/{projectTask}', [ProjectTaskController::class, 'update'])->name('project-tasks.update');
+    Route::get('/project-tasks/{projectTask}/items', [ProjectTaskController::class, 'items'])->name('project-tasks.items.index');
+    Route::post('/project-tasks/{projectTask}/items', [ProjectTaskController::class, 'storeItem'])->name('project-tasks.items.store');
+    Route::patch('/project-tasks/{projectTask}/items/{item}', [ProjectTaskController::class, 'updateItem'])->name('project-tasks.items.update');
+    Route::delete('/project-tasks/{projectTask}/items/{item}', [ProjectTaskController::class, 'destroyItem'])->name('project-tasks.items.destroy');
+
     // Комментарии (права — в контроллере: ответственный/руководитель пишут, автор/руководитель удаляют)
     Route::post('/comments', [CommentController::class, 'store'])->name('comments.store');
     Route::delete('/comments/{comment}', [CommentController::class, 'destroy'])->name('comments.destroy');

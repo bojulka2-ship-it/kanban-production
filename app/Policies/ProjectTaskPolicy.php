@@ -54,6 +54,14 @@ class ProjectTaskPolicy
         return $this->canManipulate($user, $projectTask);
     }
 
+    /**
+     * Управление пунктами чек-листа (этап 11): ответственный или руководитель.
+     */
+    public function manageItems(User $user, ProjectTask $projectTask): bool
+    {
+        return $this->canManipulate($user, $projectTask);
+    }
+
     private function canManipulate(User $user, ProjectTask $projectTask): bool
     {
         // Архивный проект — только просмотр (движение, этапы, комментарии запрещены)
