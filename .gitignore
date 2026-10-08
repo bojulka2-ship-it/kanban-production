@@ -19,6 +19,7 @@
 /storage/*.key
 /storage/pail
 /Temp
+/output
 /vendor
 Homestead.json
 Homestead.yaml
