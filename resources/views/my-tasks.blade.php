@@ -98,27 +98,13 @@
                                 <div class="text-[12px] text-muted truncate">{{ $task->project->title }}</div>
                             </div>
                             <div class="shrink-0">
-                                @if ($task->priority === 'high')
-                                    <span class="rounded bg-red-50 text-danger font-medium px-2 py-0.5 text-[10px] whitespace-nowrap">Высокий</span>
-                                @elseif ($task->priority === 'low')
-                                    <span class="rounded bg-slate-100 text-muted font-medium px-2 py-0.5 text-[10px] whitespace-nowrap">Низкий</span>
-                                @endif
+                                <span data-priority-badge
+                                      class="rounded font-medium px-2 py-0.5 text-[10px] whitespace-nowrap {{ $task->priority === 'normal' ? 'hidden' : ($task->priority === 'high' ? 'bg-red-50 text-danger' : 'bg-slate-100 text-muted') }}">{{ $task->priority === 'high' ? 'Высокий' : 'Низкий' }}</span>
                             </div>
                         </div>
 
-                        @if ($task->due_date)
-                            <span class="inline-block mt-2 rounded px-2 py-0.5 text-[11px] font-medium
-                                {{ $daysLeft < 0 ? 'bg-red-50 text-danger' : ($daysLeft <= 3 ? 'bg-amber-50 text-warn' : 'bg-slate-100 text-muted') }}">
-                                Дедлайн {{ $task->due_date->format('d.m.Y') }}
-                                @if ($daysLeft < 0)
-                                    · просрочено на {{ -$daysLeft }} дн.
-                                @elseif ($daysLeft === 0)
-                                    · сегодня
-                                @elseif ($daysLeft <= 3)
-                                    · осталось {{ $daysLeft }} дн.
-                                @endif
-                            </span>
-                        @endif
+                        <span data-due-badge
+                              class="inline-block mt-2 rounded px-2 py-0.5 text-[11px] font-medium {{ !$task->due_date ? 'hidden' : ($daysLeft < 0 ? 'bg-red-50 text-danger' : ($daysLeft <= 3 ? 'bg-amber-50 text-warn' : 'bg-slate-100 text-muted')) }}">@if ($task->due_date)Дедлайн {{ $task->due_date->format('d.m.Y') }}@if ($daysLeft < 0) · просрочено на {{ -$daysLeft }} дн.@elseif ($daysLeft === 0) · сегодня@elseif ($daysLeft <= 3) · осталось {{ $daysLeft }} дн.@endif @endif</span>
 
                         <div class="mt-3">
                             <div class="flex items-center justify-between text-[11px] text-muted mb-1">

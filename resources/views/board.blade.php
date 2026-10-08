@@ -230,23 +230,19 @@
                                         </div>
                                     </div>
 
-                                    {{-- Трекер (этап 11): прогресс чек-листа «N/M» и точка дедлайна --}}
+                                    {{-- Трекер (этап 11): прогресс чек-листа «N/M» и точка дедлайна.
+                                         Строка отрисована всегда — syncCard() обновляет значения вживую. --}}
                                     @php
                                         $taskItemsTotal = $task->items_count ?? 0;
                                         $taskItemsDone = $task->items_done_count ?? 0;
                                         $taskDueOverdue = $task->due_date && $task->due_date->copy()->startOfDay()->lt(now()->startOfDay());
                                     @endphp
-                                    @if ($taskItemsTotal > 0 || $task->due_date)
-                                        <div class="flex items-center gap-1.5 mt-0.5">
-                                            @if ($taskItemsTotal > 0)
-                                                <span data-checklist class="text-[10px] text-muted" title="Выполнено пунктов чек-листа">☑ {{ $taskItemsDone }}/{{ $taskItemsTotal }}</span>
-                                            @endif
-                                            @if ($task->due_date)
-                                                <span title="Дедлайн задачи: {{ $task->due_date->format('d.m.Y') }}"
-                                                      class="inline-block w-1.5 h-1.5 rounded-full shrink-0 {{ $taskDueOverdue ? 'bg-danger' : 'bg-slate-300' }}"></span>
-                                            @endif
-                                        </div>
-                                    @endif
+                                    <div class="flex items-center gap-1.5 mt-0.5">
+                                        <span data-checklist class="text-[10px] text-muted {{ $taskItemsTotal > 0 ? '' : 'hidden' }}" title="Выполнено пунктов чек-листа">☑ {{ $taskItemsDone }}/{{ $taskItemsTotal }}</span>
+                                        <span data-due-dot
+                                              title="{{ $task->due_date ? 'Дедлайн задачи: ' . $task->due_date->format('d.m.Y') : 'Дедлайн не задан' }}"
+                                              class="inline-block w-1.5 h-1.5 rounded-full shrink-0 {{ $task->due_date ? ($taskDueOverdue ? 'bg-danger' : 'bg-slate-300') : 'hidden' }}"></span>
+                                    </div>
 
                                     <div class="flex items-center justify-between mt-1">
                                         <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-accent/10 text-accent text-[10px] font-bold shrink-0">{{ $task->responsible?->initials }}</span>

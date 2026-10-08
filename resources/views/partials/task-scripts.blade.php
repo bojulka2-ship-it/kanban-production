@@ -120,8 +120,11 @@ function taskModalMethods() {
         // Синхронизировать индикаторы карточки задачи (доска и «Мои задачи») без перезагрузки
         syncCard(taskId) {
             const d = this.modal.data;
+            const all = (sel) => document.querySelectorAll('[data-task-id="' + taskId + '"] ' + sel);
+
+            // Чек-лист «☑ N/M»
             const items = d.items || {};
-            document.querySelectorAll('[data-task-id="' + taskId + '"] [data-checklist]').forEach((badge) => {
+            all('[data-checklist]').forEach((badge) => {
                 if (items.total > 0) {
                     badge.textContent = '☑ ' + items.done + '/' + items.total;
                     badge.classList.remove('hidden');
@@ -129,14 +132,54 @@ function taskModalMethods() {
                     badge.classList.add('hidden');
                 }
             });
+
+            // Приоритет: high / low / normal (normal — скрыт)
+            const priority = d.priority || 'normal';
+            all('[data-priority-badge]').forEach((badge) => {
+                if (priority === 'normal') {
+                    badge.classList.add('hidden');
+                    return;
+                }
+                badge.textContent = priority === 'high' ? 'Высокий' : 'Низкий';
+                badge.className = 'rounded font-medium px-2 py-0.5 text-[10px] whitespace-nowrap '
+                    + (priority === 'high' ? 'bg-red-50 text-danger' : 'bg-slate-100 text-muted');
+            });
+
+            // Дедлайн: точка на доске
+            const due = d.due;
+            const dueDate = d.due_date;
+            all('[data-due-dot]').forEach((dot) => {
+                if (!dueDate) {
+                    dot.classList.add('hidden');
+                    return;
+                }
+                dot.classList.remove('hidden');
+                dot.className = 'inline-block w-1.5 h-1.5 rounded-full shrink-0 '
+                    + (due && due.tone === 'overdue' ? 'bg-danger' : 'bg-slate-300');
+                dot.title = 'Дедлайн задачи: ' + dueDate;
+            });
+
+            // Дедлайн: бейдж на «Мои задачи»
+            all('[data-due-badge]').forEach((badge) => {
+                if (!dueDate) {
+                    badge.classList.add('hidden');
+                    return;
+                }
+                const tone = due ? due.tone : 'ok';
+                badge.className = 'inline-block mt-2 rounded px-2 py-0.5 text-[11px] font-medium '
+                    + (tone === 'overdue' ? 'bg-red-50 text-danger' : (tone === 'soon' ? 'bg-amber-50 text-warn' : 'bg-slate-100 text-muted'));
+                badge.textContent = 'Дедлайн ' + dueDate + (due && due.label ? ' · ' + due.label : '');
+            });
+
+            // Прогресс этапов «X/5» и полоса
             const stages = d.stages || [];
             if (stages.length) {
                 const done = stages.filter((s) => s.status === 'done').length;
-                document.querySelectorAll('[data-task-id="' + taskId + '"] [data-stage-progress]').forEach((el) => {
+                all('[data-stage-progress]').forEach((el) => {
                     el.textContent = done + '/' + stages.length;
                 });
                 const percent = Math.round((done / stages.length) * 100);
-                document.querySelectorAll('[data-task-id="' + taskId + '"] [data-stage-bar]').forEach((el) => {
+                all('[data-stage-bar]').forEach((el) => {
                     el.style.width = percent + '%';
                 });
             }
