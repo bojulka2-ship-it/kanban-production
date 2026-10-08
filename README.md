@@ -1,59 +1,102 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# ПРОИЗВОДСТВО · Трекер
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Канбан-трекер производственных задач: доска «проекты × этапы × задачи», роли
+(руководитель/сотрудник), комментарии, история перемещений, дедлайны, приоритеты,
+чек-листы и личная страница «Мои задачи».
 
-## About Laravel
+Полное описание этапов и модели данных — в [PROJECT.md](PROJECT.md).
+Результаты проверок — в [AUDIT.md](AUDIT.md).
+Инструкция для конечного пользователя — в [ПАМЯТКА_ПОЛЬЗОВАТЕЛЯ.md](ПАМЯТКА_ПОЛЬЗОВАТЕЛЯ.md).
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Возможности
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- **Вход и роли.** Авторизация по email/паролю, разграничение прав (руководитель и сотрудник), смена собственного пароля.
+- **Канбан-доска** (главная): строки — проекты, колонки — 5 этапов, в каждой ячейке 4 карточки задач. Статусы карточек: «Ожидает», «В работе» (с датой), «Завершено».
+- **Перемещение задач:** drag-and-drop (только «В работе» и только для ответственного/руководителя) и меню `⋮` («Перенести на этап», «Завершить этап»). Действия пишутся в историю.
+- **Модалка задачи:** вкладки «Этапы», «Чек-лист», «История», «Комментарии»; описание, дедлайн и приоритет (трекер, v1.1).
+- **Комментарии** к задаче: пишут ответственный или руководитель; удаляет автор или руководитель.
+- **Трекер задачи:** описание, дедлайн, приоритет (низкий/обычный/высокий), чек-лист с прогрессом «N/M».
+- **«Мои задачи»:** список задач, где вы ответственный, с прогрессом этапов «X/5», чек-листом, бейджем дедлайна и фильтрами (проект, приоритет, только просроченные). В шапке — счётчик просроченных.
+- **Фильтры доски** (серверные, комбинируются): поиск по названию, ответственный, статус проекта, только просроченные, переключатель «Активные/Архив».
+- **Проекты:** создание и редактирование (руководитель), архив и восстановление.
+- **Пользователи** (руководитель): создание, редактирование, сброс пароля, деактивация.
+- **Адаптив:** десктоп (таблица) и мобильные (<768px — список проектов и полноэкранные модалки), тач-цели ≥44px.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Стек
 
-## Learning Laravel
+- PHP 8.4, Laravel 12
+- SQLite (файл `database/database.sqlite`)
+- Blade-шаблоны, **zero-build**: Tailwind CSS и Alpine.js подключаются через CDN, сборка (`npm`) не требуется
+- PHPUnit 11
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+## Требования
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+- PHP **8.4** с расширениями `pdo_sqlite`, `mbstring`, `openssl`
+- Composer
+- Доступ в интернет при открытии страниц (Tailwind/Alpine/шрифты грузятся с CDN; после первого раза браузер кэширует)
 
-## Laravel Sponsors
+## Установка и запуск
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+```powershell
+composer install                 # зависимости (если vendor/ отсутствует)
+copy .env.example .env           # если .env ещё нет
+php artisan key:generate         # если ключ не сгенерирован
+php artisan migrate --seed       # схема + демо-данные
+php artisan serve                # http://127.0.0.1:8000
+```
 
-### Premium Partners
+Полный сброс демо-данных: `php artisan migrate:fresh --seed`.
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+> Приложение — zero-build. Команды `npm install` / `npm run build` из шаблонных
+> скриптов Composer **не нужны** (используются только в этапе деплоя).
 
-## Contributing
+## Демо-доступы
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+| Роль | Email | Пароль |
+|---|---|---|
+| Руководитель | `manager@demo.ru` | `password` |
+| Сотрудники | `petrov@demo.ru`, `sidorova@demo.ru`, `kuznetsova@demo.ru`, `smirnov@demo.ru`, `volkov@demo.ru` | `password` |
 
-## Code of Conduct
+Демо: 4 проекта, 80 карточек (4 задачи × 5 этапов × 4 проекта), история, комментарии,
+дедлайны/приоритеты/чек-листы на проекте «Серийные корпусные детали».
+`manager@demo.ru` — ответственный за просроченную задачу (для страницы «Мои задачи»).
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## Тесты
 
-## Security Vulnerabilities
+```powershell
+php artisan test                 # всё (62 passed)
+php artisan test --filter=MyTasksTest
+php artisan test --filter=TaskTrackerTest
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## Полезные маршруты
 
-## License
+| Маршрут | Назначение |
+|---|---|
+| `GET /` | Канбан-доска |
+| `GET /my-tasks` | «Мои задачи» |
+| `GET /project-tasks/{id}/detail` | JSON модалки задачи |
+| `PATCH /project-tasks/{id}` | Описание/дедлайн/приоритет |
+| `…/items` | Чек-лист (GET/POST/PATCH/DELETE) |
+| `GET /users` | Пользователи (руководитель) |
+| `GET /password` | Смена своего пароля |
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Полный список: `php artisan route:list`.
+
+## Структура (основное)
+
+```
+app/Http/Controllers/     ProjectController, ProjectTaskController, MyTasksController, …
+app/Http/Requests/        StoreProjectRequest, UpdateProjectRequest
+app/Models/               Project, ProjectTask, TaskItem, Stage, StageStatus, User, …
+app/Policies/             ProjectPolicy, ProjectTaskPolicy, UserPolicy
+resources/views/          board, my-tasks, projects/, users/, auth/, layouts/, partials/
+database/migrations/      схема БД
+database/seeders/         ReferenceSeeder, UserSeeder, ProjectSeeder, TaskTrackerSeeder
+tests/Feature/            AuthFlow, RoleAccess, Validation, Security, TaskTracker, MyTasks
+```
+
+## Статус
+
+Этапы 1–9, 11, 12 реализованы и покрыты тестами. Этап 10 (деплой на Railway)
+не выполняется — приложение запускается локально.
