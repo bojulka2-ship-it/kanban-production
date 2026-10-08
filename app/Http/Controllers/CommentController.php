@@ -90,7 +90,8 @@ class CommentController extends Controller
                 'color' => $comment->user->avatar_color,
             ],
             'time' => $comment->created_at->format('d.m.Y H:i'),
-            'body' => $comment->body,
+            // Эскейп на сервере: клиент вставляет тело через x-html (защита от XSS)
+            'body' => e($comment->body),
             'canDelete' => $this->canDelete($comment, $user),
         ];
     }

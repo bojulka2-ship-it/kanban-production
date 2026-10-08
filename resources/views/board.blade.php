@@ -699,6 +699,7 @@ function board() {
             this.keep();
         },
 nl2brHtml(text) {
+            // Тело уже экранировано на сервере (CommentController::formatted) — только переносы строк
             return (text || '').replace(/\n/g, '<br>');
         },
         async loadComments() {
