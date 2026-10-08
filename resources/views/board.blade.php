@@ -480,220 +480,7 @@
         </div>
     </div>
 
-    {{-- Модалка карточки задачи: вкладки «Этапы» / «История» / «Комментарии» --}}
-    <div x-show="modal.open" x-cloak @keydown.escape.window="modal.open = false"
-         class="fixed inset-0 z-40 flex items-center justify-center p-0 md:p-4">
-        <div class="absolute inset-0 bg-black/40" @click="modal.open = false"></div>
-        <div class="relative bg-white border-0 md:border border-line rounded-none md:rounded-xl shadow-lg w-full md:max-w-xl h-full md:h-auto md:max-h-[90vh] flex flex-col">
-            <div class="p-5 pb-0 border-b border-line">
-                <div class="flex items-start justify-between gap-3">
-                    <div class="min-w-0">
-                        <h2 class="text-[16px] font-semibold leading-tight">
-                            <span x-text="modal.data.task"></span> — <span x-text="modal.data.project"></span>
-                        </h2>
-                        <p class="text-[13px] text-muted mt-0.5">
-                            Ответственный: <span class="text-ink font-medium" x-text="modal.data.responsible"></span>
-                        </p>
-
-                        {{-- Бейджи трекера: приоритет и дедлайн (этап 11) --}}
-                        <div class="mt-2 flex flex-wrap items-center gap-1.5">
-                            <template x-if="modal.data.priority === 'high'">
-                                <span class="rounded bg-red-50 text-danger font-medium px-2 py-0.5 text-[11px]">Высокий приоритет</span>
-                            </template>
-                            <template x-if="modal.data.priority === 'low'">
-                                <span class="rounded bg-slate-100 text-muted font-medium px-2 py-0.5 text-[11px]">Низкий приоритет</span>
-                            </template>
-                            <template x-if="modal.data.due_date">
-                                <span class="rounded px-2 py-0.5 text-[11px] font-medium"
-                                      :class="dueToneClass(modal.data.due)">
-                                    Дедлайн: <span x-text="modal.data.due_date"></span><template x-if="modal.data.due && modal.data.due.label"><span> · <span x-text="modal.data.due.label"></span></span></template>
-                                </span>
-                            </template>
-                        </div>
-
-                        {{-- Раскрывающийся блок «Описание» --}}
-                        <div class="mt-2">
-                            <button type="button" @click="descOpen = !descOpen"
-                                    class="text-[12px] font-medium text-accent hover:underline">
-                                <span x-text="descOpen ? 'Скрыть описание' : 'Описание'"></span>
-                            </button>
-                            <div x-show="descOpen" x-cloak class="mt-2">
-                                <template x-if="modal.data.can_edit">
-                                    <div class="space-y-2">
-                                        <textarea rows="3" x-model="descText" maxlength="5000"
-                                                  placeholder="Описание задачи…"
-                                                  class="w-full rounded-lg border border-line px-3 py-2 text-[13px] resize-y focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"></textarea>
-                                        <div class="flex flex-wrap items-center gap-2">
-                                            <input type="date" x-model="dueText" title="Дедлайн задачи"
-                                                   class="rounded-lg border border-line px-2.5 py-1.5 text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent">
-                                            <select x-model="priorityText" title="Приоритет"
-                                                    class="rounded-lg border border-line px-2.5 py-1.5 text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent">
-                                                <option value="low">Низкий</option>
-                                                <option value="normal">Обычный</option>
-                                                <option value="high">Высокий</option>
-                                            </select>
-                                            <button type="button" @click="saveTracker()"
-                                                    class="rounded-lg bg-accent hover:bg-accent-hover text-white text-[13px] font-medium px-3 py-1.5 transition-colors">
-                                                Сохранить
-                                            </button>
-                                        </div>
-                                    </div>
-                                </template>
-                                <template x-if="!modal.data.can_edit">
-                                    <p class="text-[13px] text-muted whitespace-pre-line break-words"
-                                       x-text="(modal.data.description && modal.data.description.length) ? modal.data.description : 'Описание не задано.'"></p>
-                                </template>
-                            </div>
-                        </div>
-                    </div>
-                    <button type="button" @click="modal.open = false" class="text-muted hover:text-ink text-[18px] leading-none">&times;</button>
-                </div>
-
-                {{-- Вкладки --}}
-                <div class="flex gap-4 mt-3 text-[13px] font-medium">
-                    <button type="button" @click="modal.tab = 'stages'"
-                            :class="modal.tab === 'stages' ? 'text-accent border-accent' : 'text-muted border-transparent hover:text-ink'"
-                            class="pb-2 border-b-2">Этапы</button>
-                    <button type="button" @click="modal.tab = 'checklist'"
-                            :class="modal.tab === 'checklist' ? 'text-accent border-accent' : 'text-muted border-transparent hover:text-ink'"
-                            class="pb-2 border-b-2">Чек-лист<template x-if="modal.data.items && modal.data.items.total"><span class="ml-1 text-[11px] text-muted" x-text="'(' + modal.data.items.done + '/' + modal.data.items.total + ')'"></span></template></button>
-                    <button type="button" @click="modal.tab = 'history'"
-                            :class="modal.tab === 'history' ? 'text-accent border-accent' : 'text-muted border-transparent hover:text-ink'"
-                            class="pb-2 border-b-2">История</button>
-                    <button type="button" @click="modal.tab = 'comments'"
-                            :class="modal.tab === 'comments' ? 'text-accent border-accent' : 'text-muted border-transparent hover:text-ink'"
-                            class="pb-2 border-b-2">Комментарии</button>
-                </div>
-            </div>
-
-            <div class="p-5 overflow-y-auto flex-1">
-                <div x-show="modal.loading" x-cloak class="py-10 text-center text-[13px] text-muted">Загружаем…</div>
-
-                {{-- Вкладка «Этапы» --}}
-                <div x-show="!modal.loading && modal.tab === 'stages'" x-cloak class="space-y-2">
-                    <template x-for="st in modal.data.stages">
-                        <div class="flex items-center justify-between gap-3 rounded-lg border border-line px-3 py-2">
-                            <div class="flex items-center gap-2 min-w-0">
-                                <span class="text-[13px] font-medium truncate" x-text="st.name"></span>
-                                <span x-show="st.status === 'pending'"
-                                      class="rounded bg-slate-100 text-muted px-2 py-0.5 text-[11px] shrink-0">Ожидает</span>
-                                <span x-show="st.status === 'in_progress'"
-                                      class="rounded bg-accent/10 text-accent px-2 py-0.5 text-[11px] shrink-0">В работе · <span x-text="st.entered_at"></span></span>
-                                <span x-show="st.status === 'done'"
-                                      class="rounded bg-green-50 text-done px-2 py-0.5 text-[11px] shrink-0">Завершено</span>
-                            </div>
-                            <div class="flex gap-1.5 shrink-0" x-show="modal.data.can_move">
-                                <button x-show="st.status === 'pending'" type="button" @click="doStage(st, 'start')"
-                                        class="rounded-lg border border-accent/40 text-accent px-3 md:px-2.5 py-2 md:py-1 min-h-[44px] md:min-h-0 text-[12px] font-medium hover:border-accent">Начать</button>
-                                <button x-show="st.status === 'in_progress'" type="button" @click="doStage(st, 'finish')"
-                                        class="rounded-lg border border-line px-3 md:px-2.5 py-2 md:py-1 min-h-[44px] md:min-h-0 text-[12px] font-medium hover:bg-page">Завершить</button>
-                                <button x-show="st.status === 'done'" type="button" @click="doStage(st, 'reopen')"
-                                        class="rounded-lg border border-accent/40 text-accent px-3 md:px-2.5 py-2 md:py-1 min-h-[44px] md:min-h-0 text-[12px] font-medium hover:border-accent">Вернуть в работу</button>
-                            </div>
-                        </div>
-                    </template>
-                </div>
-
-                {{-- Вкладка «Чек-лист» --}}
-                <div x-show="!modal.loading && modal.tab === 'checklist'" x-cloak>
-                    <template x-if="modal.data.items && modal.data.items.can_manage">
-                        <div class="flex gap-2 mb-3">
-                            <input type="text" x-model="newItem" @keydown.enter.prevent="addItem()" maxlength="255"
-                                   placeholder="Новый пункт…"
-                                   class="flex-1 rounded-lg border border-line px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent">
-                            <button type="button" @click="addItem()"
-                                    class="rounded-lg border border-accent/40 text-accent px-3 py-2 text-[13px] font-medium hover:border-accent">
-                                Добавить
-                            </button>
-                        </div>
-                    </template>
-
-                    <div class="space-y-1.5">
-                        <template x-for="it in (modal.data.items ? modal.data.items.items : [])" :key="it.id">
-                            <div class="flex items-center gap-2.5 rounded-lg border border-line px-3 py-2">
-                                <input type="checkbox" :checked="it.is_done"
-                                       @change="toggleItem(it)"
-                                       :disabled="!(modal.data.items && modal.data.items.can_manage)"
-                                       class="w-4 h-4 shrink-0 rounded border-line text-accent focus:ring-accent/30">
-                                <span class="flex-1 text-[13px] break-words"
-                                      :class="it.is_done ? 'line-through text-muted' : 'text-ink'"
-                                      x-text="it.title"></span>
-                                <button x-show="modal.data.items && modal.data.items.can_manage" type="button"
-                                        @click="removeItem(it.id)"
-                                        class="text-muted hover:text-danger leading-none shrink-0" title="Удалить">&times;</button>
-                            </div>
-                        </template>
-                    </div>
-                    <p x-show="modal.data.items && modal.data.items.total === 0" class="text-[13px] text-muted">
-                        Чек-лист пуст.
-                    </p>
-                    <p x-show="modal.data.items && modal.data.items.can_manage === false" class="text-[12px] text-muted mt-2">
-                        Отмечать пункты может ответственный или руководитель.
-                    </p>
-                </div>
-
-                {{-- Вкладка «История» --}}
-                <div x-show="!modal.loading && modal.tab === 'history'" x-cloak class="space-y-1.5">
-                    <template x-for="h in modal.data.history">
-                        <div class="flex gap-2 text-[13px] leading-snug">
-                            <span class="text-muted whitespace-nowrap" x-text="h.time"></span>
-                            <span class="text-muted shrink-0" x-text="h.user + ':'"></span>
-                            <span class="min-w-0" x-text="h.text"></span>
-                        </div>
-                    </template>
-                    <p x-show="modal.data.history.length === 0" class="text-[13px] text-muted">Пока нет записей.</p>
-                </div>
-
-                {{-- Вкладка «Комментарии» --}}
-                <div x-show="!modal.loading && modal.tab === 'comments'" x-cloak>
-                    {{-- Форма: ответственный или руководитель --}}
-                    <template x-if="modal.canWrite">
-                        <div>
-                            <textarea x-ref="commentInput" rows="2" x-model="commentBody"
-                                      @input="autoGrow($el)"
-                                      @keydown.ctrl.enter="submitComment()"
-                                      placeholder="Написать комментарий…"
-                                      class="w-full rounded-lg border border-line px-3 py-2 text-sm resize-none overflow-hidden focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"></textarea>
-                            <div class="flex justify-end mt-1.5">
-                                <button type="button" @click="submitComment()"
-                                        class="rounded-lg bg-accent hover:bg-accent-hover text-white text-sm font-medium px-4 py-1.5 transition-colors">
-                                    Отправить
-                                </button>
-                            </div>
-                        </div>
-                    </template>
-
-                    {{-- Подпись для тех, кто не может комментировать --}}
-                    <template x-if="!modal.canWrite">
-                        <p class="text-[12px] text-muted rounded-lg bg-page border border-line px-3 py-2">
-                            Комментировать может ответственный или руководитель.
-                        </p>
-                    </template>
-
-                    {{-- Лента комментариев --}}
-                    <div class="space-y-3.5 mt-4">
-                        <template x-for="c in modal.comments" :key="c.id">
-                            <div class="flex gap-2.5">
-                                <span class="w-8 h-8 rounded-full shrink-0 inline-flex items-center justify-center text-[11px] font-bold"
-                                      :class="c.user.color" x-text="c.user.initials"></span>
-                                <div class="flex-1 min-w-0">
-                                    <div class="flex items-baseline gap-2">
-                                        <span class="text-[13px] font-semibold" x-text="c.user.name"></span>
-                                        <span class="text-[11px] text-muted whitespace-nowrap" x-text="c.time"></span>
-                                    </div>
-                                    <p class="text-[13px] leading-relaxed mt-0.5 break-words" x-html="nl2brHtml(c.body)"></p>
-                                </div>
-                                <button x-show="c.canDelete" type="button"
-                                        @click="if (confirm('Удалить комментарий?')) removeComment(c.id)"
-                                        class="text-muted hover:text-danger leading-none shrink-0 mt-0.5" title="Удалить">&times;</button>
-                            </div>
-                        </template>
-                        <p x-show="modal.comments.length === 0" class="text-[13px] text-muted">Комментариев пока нет.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    @include('partials.task-modal')
 
     {{-- Модалка: новый проект (manager) --}}
     @can('create', App\Models\Project::class)
@@ -772,29 +559,12 @@
     .bc-nodrag { cursor: default; }
 </style>
 
+@include('partials.task-scripts')
+
 <script>
 function board() {
-    return {
+    return Object.assign({
         pop: { ask: false, taskId: null, stageId: null, stageName: '', x: 0, y: 0 },
-        modal: {
-            open: false,
-            tab: 'stages',
-            loading: false,
-            taskId: null,
-            data: {
-                task: '', project: '', responsible: '', can_move: false, stages: [], history: [],
-                description: null, due_date: null, due_date_raw: null, due: null, priority: 'normal',
-                can_edit: false, items: { items: [], done: 0, total: 0, can_manage: false },
-            },
-            comments: [],
-            canWrite: false,
-        },
-        // Поля трекера (этап 11)
-        descOpen: false,
-        descText: '',
-        dueText: '',
-        priorityText: 'normal',
-        newItem: '',
         project: {
             open: false,
             form: { title: '', start_date: '', due_date: '', responsible: {} },
@@ -807,7 +577,6 @@ function board() {
         closeProject() {
             this.proj = { open: false, id: null };
         },
-        commentBody: '',
         init() {
             window.addEventListener('ask-complete', (e) => {
                 this.pop = {
@@ -819,44 +588,11 @@ function board() {
                     y: e.detail.y,
                 };
             });
-            window.addEventListener('open-task', (e) => {
-                this.openTask(e.detail.taskId, e.detail.tab);
-            });
+            this.initTaskModal();
         },
         openCreate() {
             this.project.form = { title: '', start_date: '', due_date: '', responsible: {} };
             this.project.open = true;
-        },
-        async openTask(taskId, tab) {
-            this.modal.tab = tab || 'stages';
-            this.modal.taskId = taskId;
-            this.modal.open = true;
-            await this.loadDetail();
-        },
-        async loadDetail() {
-            if (!this.modal.taskId) return;
-            this.modal.loading = true;
-            try {
-                const r = await fetch('/project-tasks/' + this.modal.taskId + '/detail', {
-                    headers: { 'Accept': 'application/json' },
-                });
-                this.modal.data = await r.json();
-                this.descText = this.modal.data.description || '';
-                this.dueText = this.modal.data.due_date_raw || '';
-                this.priorityText = this.modal.data.priority || 'normal';
-                await this.loadComments();
-            } finally {
-                this.modal.loading = false;
-            }
-        },
-        async doStage(stage, action) {
-            // Здесь те же API, что и drag/меню ⋮: start/reopen → move, finish → complete
-            if (action === 'finish') {
-                await window.completeStage(this.modal.taskId, stage.id);
-            } else {
-                await window.moveTask(this.modal.taskId, stage.id, {});
-            }
-            await this.loadDetail();
         },
         finishPop() {
             if (!this.pop.taskId) return;
@@ -866,127 +602,7 @@ function board() {
         keep() {
             this.pop.ask = false;
         },
-        // --- Трекер задачи (этап 11) ---
-        dueToneClass(due) {
-            if (!due) return 'bg-slate-100 text-muted';
-            if (due.tone === 'overdue') return 'bg-red-50 text-danger';
-            if (due.tone === 'soon') return 'bg-amber-50 text-warn';
-            return 'bg-slate-100 text-muted';
-        },
-        async saveTracker() {
-            await this.trackerRequest('PATCH', '/project-tasks/' + this.modal.taskId, {
-                description: this.descText || null,
-                due_date: this.dueText || null,
-                priority: this.priorityText,
-            }, 'Не удалось сохранить. Недостаточно прав.');
-        },
-        async addItem() {
-            const title = (this.newItem || '').trim();
-            if (!title) return;
-            const ok = await this.itemRequest('POST', '/project-tasks/' + this.modal.taskId + '/items', { title });
-            if (ok) this.newItem = '';
-        },
-        async toggleItem(it) {
-            await this.itemRequest('PATCH', '/project-tasks/' + this.modal.taskId + '/items/' + it.id, { is_done: !it.is_done });
-        },
-        async removeItem(id) {
-            await this.itemRequest('DELETE', '/project-tasks/' + this.modal.taskId + '/items/' + id);
-        },
-        async itemRequest(method, url, body) {
-            const token = document.querySelector('meta[name="csrf-token"]')?.content;
-            const opts = { method, headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': token } };
-            if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
-            try {
-                const r = await fetch(url, opts);
-                if (!r.ok) throw new Error('forbidden');
-                this.modal.data.items = await r.json();
-                this.loadBoardCard(this.modal.taskId);
-                return true;
-            } catch (e) {
-                alert('Не удалось изменить чек-лист. Недостаточно прав.');
-                return false;
-            }
-        },
-        async trackerRequest(method, url, body, errorText) {
-            const token = document.querySelector('meta[name="csrf-token"]')?.content;
-            try {
-                const r = await fetch(url, {
-                    method,
-                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token },
-                    body: JSON.stringify(body),
-                });
-                if (!r.ok) throw new Error('forbidden');
-                await this.loadDetail();
-                this.loadBoardCard(this.modal.taskId);
-            } catch (e) {
-                alert(errorText);
-            }
-        },
-        // Обновить индикаторы чек-листа на карточке доски (этап 11)
-        loadBoardCard(taskId) {
-            if (!this.modal.data.items) return;
-            const done = this.modal.data.items.done;
-            const total = this.modal.data.items.total;
-            document.querySelectorAll('.bccard[data-task-id="' + taskId + '"] [data-checklist]').forEach((badge) => {
-                if (total > 0) {
-                    badge.textContent = '☑ ' + done + '/' + total;
-                    badge.classList.remove('hidden');
-                } else {
-                    badge.classList.add('hidden');
-                }
-            });
-        },
-nl2brHtml(text) {
-            // Тело уже экранировано на сервере (CommentController::formatted) — только переносы строк
-            return (text || '').replace(/\n/g, '<br>');
-        },
-        async loadComments() {
-            const r = await fetch('/project-tasks/' + this.modal.taskId + '/comments', {
-                headers: { 'Accept': 'application/json' },
-            });
-            const c = await r.json();
-            this.modal.comments = c.comments;
-            this.modal.canWrite = c.can_write;
-        },
-        autoGrow(el) {
-            el.style.height = 'auto';
-            el.style.height = el.scrollHeight + 'px';
-        },
-        async submitComment() {
-            const body = (this.commentBody || '').trim();
-            if (!body) return;
-            const token = document.querySelector('meta[name="csrf-token"]')?.content;
-            await fetch('/comments', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token },
-                body: JSON.stringify({ body, project_task_id: this.modal.taskId }),
-            }).then(r => {
-                if (!r.ok) throw new Error('forbidden');
-                return r.json();
-            }).then(() => {
-                this.commentBody = '';
-                const inp = this.$refs.commentInput;
-                if (inp) { inp.style.height = 'auto'; }
-                this.loadComments();
-            }).catch(() => {
-                alert('Комментарий не добавлен. Возможно, недостаточно прав.');
-            });
-        },
-        async removeComment(id) {
-            const token = document.querySelector('meta[name="csrf-token"]')?.content;
-            await fetch('/comments/' + id, {
-                method: 'DELETE',
-                headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': token },
-            }).then(r => {
-                if (!r.ok) throw new Error('forbidden');
-                return r.json();
-            }).then(() => {
-                this.loadComments();
-            }).catch(() => {
-                alert('Удалить комментарий нельзя.');
-            });
-        },
-    };
+    }, taskModalMethods());
 }
 
 function cardMenu() {
@@ -1074,67 +690,6 @@ function cardMenu() {
                     dragState = null;
                 },
             });
-        });
-    }
-
-    window.moveTask = function (taskId, stageId, opts) {
-        opts = opts || {};
-        const token = document.querySelector('meta[name="csrf-token"]')?.content;
-        return fetch('/project-tasks/' + taskId + '/move', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token },
-            body: JSON.stringify({ stage_id: stageId }),
-        }).then(r => r.json()).then(data => {
-            if (!data.ok) return;
-            renderCardStatus(taskId, stageId, data.status, data.entered_at);
-            if (opts.showPopover) {
-                window.dispatchEvent(new CustomEvent('ask-complete', {
-                    detail: {
-                        taskId,
-                        stageId: opts.fromStageId,
-                        stageName: opts.fromStageName,
-                        x: opts.x,
-                        y: opts.y,
-                    },
-                }));
-            }
-        });
-    };
-
-    window.completeStage = function (taskId, stageId) {
-        const token = document.querySelector('meta[name="csrf-token"]')?.content;
-        return fetch('/project-tasks/' + taskId + '/complete', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token },
-            body: JSON.stringify({ stage_id: stageId }),
-        }).then(r => r.json()).then(data => {
-            if (data.ok) renderCardStatus(taskId, stageId, data.status);
-        });
-    };
-
-    function dateToDDMM(enteredAt) {
-        return enteredAt ? enteredAt.slice(0, 5) : '';
-    }
-
-    function renderCardStatus(taskId, stageId, status, enteredAt) {
-        document.querySelectorAll('.bccard[data-task-id="' + taskId + '"][data-stage-id="' + stageId + '"]').forEach(card => {
-            card.classList.remove('bc-pending', 'bc-in_progress', 'bc-done', 'bc-draggable', 'bc-static');
-            card.classList.add('bc-' + status, status === 'in_progress' ? 'bc-draggable' : 'bc-static');
-            card.dataset.status = status;
-
-            const dateEl = card.querySelector('[data-role="date"]');
-            const checkEl = card.querySelector('[data-role="check"]');
-            if (dateEl) {
-                if (status === 'in_progress') {
-                    dateEl.textContent = dateToDDMM(enteredAt);
-                    dateEl.classList.remove('hidden');
-                } else {
-                    dateEl.classList.add('hidden');
-                }
-            }
-            if (checkEl) {
-                checkEl.classList.toggle('hidden', status !== 'done');
-            }
         });
     }
 

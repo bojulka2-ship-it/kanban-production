@@ -46,6 +46,15 @@
 
             @auth
             <div class="flex items-center gap-5">
+                <a href="{{ route('my-tasks.index') }}"
+                   class="relative text-sm font-medium hover:text-accent @class(['text-accent' => request()->routeIs('my-tasks.*')])">
+                    Мои задачи
+                    @if (($myTasksOverdue ?? 0) > 0)
+                        <span class="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-danger text-white text-[10px] font-bold align-middle"
+                              title="Просроченных задач: {{ $myTasksOverdue }}">{{ $myTasksOverdue }}</span>
+                    @endif
+                </a>
+
                 @can('manage', App\Models\User::class)
                     <a href="{{ route('users.index') }}"
                        @class(['text-sm font-medium hover:text-accent', 'text-accent' => request()->routeIs('users.*')])>

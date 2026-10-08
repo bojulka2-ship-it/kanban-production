@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -88,5 +89,22 @@ class ProjectTask extends Model
     public function items(): HasMany
     {
         return $this->hasMany(TaskItem::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    /**
+     * Задачи конкретного ответственного в неархивных проектах (страница «Мои задачи»).
+     */
+    public function scopeForResponsible(Builder $query, int $userId): Builder
+    {
+        return $query->where('responsible_id', $userId)
+            ->whereHas('project', fn (Builder $q) => $q->where('is_archived', false));
+    }
+
+    /**
+     * Задачи с просроченным дедлайном.
+     */
+    public function scopeDueOverdue(Builder $query): Builder
+    {
+        return $query->whereNotNull('due_date')->where('due_date', '<', now()->toDateString());
     }
 }

@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Project;
 use App\Models\ProjectTask;
+use App\Models\User;
 use Illuminate\Database\Seeder;
 
 class TaskTrackerSeeder extends Seeder
@@ -49,6 +50,13 @@ class TaskTrackerSeeder extends Seeder
                     ]);
                 }
             }
+        }
+
+        // Этап 12: руководитель — ответственный за одну задачу (просроченную),
+        // чтобы страница «Мои задачи» была непустой и показывала счётчик.
+        $manager = User::where('email', 'manager@demo.ru')->first();
+        if ($manager && $tasks->isNotEmpty()) {
+            $tasks[0]->update(['responsible_id' => $manager->id]);
         }
     }
 

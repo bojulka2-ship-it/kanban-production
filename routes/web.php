@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CommentController;
+use App\Http\Controllers\MyTasksController;
 use App\Http\Controllers\PasswordController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectTaskController;
@@ -20,6 +21,9 @@ Route::middleware('auth')->group(function () {
 
     // Главная — канбан-доска (матрица проектов × этапов)
     Route::get('/', [ProjectController::class, 'index'])->name('home');
+
+    // Мои задачи (этап 12): задачи, где пользователь — ответственный
+    Route::get('/my-tasks', [MyTasksController::class, 'index'])->name('my-tasks.index');
 
     // Проекты (создание/редактирование — только руководитель, проверка в контроллере)
     Route::get('/projects/{project}/edit', [ProjectController::class, 'edit'])->name('projects.edit');
