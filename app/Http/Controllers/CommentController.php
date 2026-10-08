@@ -15,6 +15,7 @@ class CommentController extends Controller
      */
     public function index(ProjectTask $projectTask): JsonResponse
     {
+        $this->authorize('view', $projectTask);
         $user = auth()->user();
 
         return response()->json([
@@ -23,7 +24,7 @@ class CommentController extends Controller
                 ->orderByDesc('id')
                 ->get()
                 ->map(fn (Comment $c) => $this->formatted($c, $user)),
-            'can_write' => $this->canWrite($projectTask, $user),
+            'can_write' => $user->can('comment', $projectTask),
             'is_manager' => $user->role->value === 'manager',
             'me' => $user->id,
         ]);
@@ -42,9 +43,7 @@ class CommentController extends Controller
         $projectTask = ProjectTask::findOrFail($data['project_task_id']);
         $user = auth()->user();
 
-        if (! $this->canWrite($projectTask, $user)) {
-            abort(403, 'Комментировать может ответственный или руководитель');
-        }
+        $this->authorize('comment', $projectTask);
 
         $comment = $projectTask->comments()->create([
             'user_id' => $user->id,
@@ -70,15 +69,6 @@ class CommentController extends Controller
         $comment->delete();
 
         return response()->json(['ok' => true]);
-    }
-
-    /**
-     * Может ли пользователь комментировать задачу.
-     */
-    private function canWrite(ProjectTask $projectTask, $user): bool
-    {
-        return $user->role->value === 'manager'
-            || $projectTask->responsible_id === $user->id;
     }
 
     /**

@@ -15,6 +15,8 @@ class ProjectTaskController extends Controller
      */
     public function move(Request $request, ProjectTask $projectTask): JsonResponse
     {
+        $this->authorize('move', $projectTask);
+
         $data = $request->validate([
             'stage_id' => ['required', 'exists:stages,id'],
         ]);
@@ -46,6 +48,8 @@ class ProjectTaskController extends Controller
      */
     public function complete(Request $request, ProjectTask $projectTask): JsonResponse
     {
+        $this->authorize('complete', $projectTask);
+
         $data = $request->validate([
             'stage_id' => ['required', 'exists:stages,id'],
         ]);
@@ -74,6 +78,8 @@ class ProjectTaskController extends Controller
      */
     public function detail(ProjectTask $projectTask): JsonResponse
     {
+        $this->authorize('view', $projectTask);
+
         $projectTask->load(['taskType', 'project', 'responsible']);
 
         $stages = $projectTask->stageStatuses()
@@ -110,6 +116,7 @@ class ProjectTaskController extends Controller
             'task' => $projectTask->taskType->name,
             'project' => $projectTask->project->title,
             'responsible' => $projectTask->responsible?->name ?? '—',
+            'can_move' => auth()->user()->can('move', $projectTask),
             'stages' => $stages,
             'history' => $history,
         ]);

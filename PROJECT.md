@@ -7,7 +7,7 @@
 - Laravel 12, PHP 8.4, SQLite, Blade
 - Frontend: Tailwind Play CDN, Alpine.js 3.x CDN, SortableJS CDN — **ZERO-BUILD** (node/npm/vite не используются, `package.json` в сборке не участвует)
 - Аутентификация: самописные сессии Laravel (Auth facade), login only, без регистрации
-- Роли: колонка `role` + enum `App\Enums\UserRole`, права — через Policies/Gate (этап 2)
+- Роли: колонка `role` + enum `App\Enums\UserRole`, права — через Policies/Gate: `ProjectPolicy`, `ProjectTaskPolicy`, `UserPolicy` (этап 7)
 - Часовой пояс: `APP_TIMEZONE=Europe/Moscow` (UTC+3)
 
 ## Схема БД
@@ -41,14 +41,27 @@
 - `PUT /projects/{project}` — обновление проекта (manager)
 - `POST /projects/{project}/archive` | `restore` — архив/восстановление (manager)
 - `GET /project-tasks/{id}/comments` — JSON ленты комментариев (автор/инициалы/цвет, дата, тело, `canDelete`), `can_write`, `is_manager`, `me`
-- `POST /comments` — создать комментарий (требует JSON `{project_task_id, body}`), доступ: ответственный или manager
+- `POST /comments` — создать комментарий (требует JSON `{project_task_id, body}`), доступ: ответственный или manager (`ProjectTaskPolicy::comment`)
 - `DELETE /comments/{id}` — удалить (автор комментария или manager)
 - `GET /password`, `PUT /password` — смена собственного пароля
 - `GET /users`, `POST /users`, `PATCH /users/{user}` — раздел «Пользователи» (только manager)
 - `POST /users/{user}/reset-password` — сброс пароля пользователя
 - `POST /users/{user}/toggle-active` — деактивация/активация
 
-Права: управление проектами и пользователями — временная inline-проверка роли (`App\Http\Controllers\Concerns\AuthorizesManager`); перемещения по доске доступны любому авторизованному (проверка «своя задача» — этап прав заменит на Policy/Gate).
+## Права доступа (Policies)
+
+Авторизация: `authorize()` в контроллерах и `authorize()` в FormRequest, `@can` в Blade, для доски — JSON-флаги `can_move` (detail) и `can_write` (comments) + класс `bc-nodrag` в SortableJS filter. Гейты: `ProjectPolicy`, `ProjectTaskPolicy`, `UserPolicy`.
+
+| Действие | Руководитель | Ответственный за задачу | Другой сотрудник |
+|---|---|---|---|
+| Просмотр доски, проекта, модалки задачи, истории | ✓ | ✓ | ✓ |
+| Создание проекта | ✓ | — | — (403) |
+| Редактирование / архив / восстановление проекта | ✓ | — | — (403) |
+| Перенос задачи (drag, «Перенести на этап», «Начать/Завершить/Вернуть в работу») | ✓ | ✓ (только своя задача) | — (403) |
+| Чтение комментариев | ✓ | ✓ | ✓ |
+| Создание комментария | ✓ | ✓ (только к своей задаче) | — (403) |
+| Удаление комментария | ✓ (любого) | только свой комментарий | только свой комментарий |
+| Раздел «Пользователи» (создание, правка, сброс пароля, деактивация) | ✓ | — | — (403) |
 
 Проект: создание/редактирование в транзакции (project + 4 project_tasks), при создании задачи stage_statuses создаются событием `ProjectTask::created` (20 на проект). Валидация — FormRequest (`StoreProjectRequest`, `UpdateProjectRequest`): due_date `after_or_equal:start_date`, ответственность по 4 задачам — только активные пользователи.
 
@@ -78,5 +91,5 @@
 - [x] **Этап 3** — проекты: создание/редактирование/архив (модалка + страница редактирования). Проверено: создание с 20 stage_statuses, валидация дат, архив прячет/восстанавливает, employee без кнопки и 403
 - [x] **Этап 4** — канбан-доска 5×4 (sticky-колонка «Проект», карточки со статусами, меню ⋮, модалка-заглушка задачи), drag-n-drop (SortableJS: переносится только in_progress), JSON move/complete с историей. Проверено: 20 ячеек × 80 карточек на доске, перенос → in_progress + дата сохраняется после F5, параллельные in_progress (без «Завершить»), возврат пройденного этапа (stage_reopened), история в task_history (tinker), employee без кнопки/шестерёнки
 - [x] **Этап 5** — полная модалка задачи (`GET /project-tasks/{id}/detail`, без перезагрузки): заголовок «[Задача] — [Проект]», вкладки «Этапы» (бейджи Ожидает/В работе+дата/Завершено, кнопки Начать/Завершить/Вернуть в работу через move/complete), «История» (лента в обратном порядке, время Москва), «Комментарии» (заглушка); клик по дате открывает сразу «Историю». Проверено: detail возвращает 5 этапов и ленту, действия пишут историю (на временном проекте), модалка не перезагружает страницу
-- [ ] Этап 6 — комментарии к задаче (вкладка «Комментарии»), фильтры/поиск доски
-- [ ] Этап прав — Policies/Gate вместо inline-проверок роли
+- [x] **Этап 6** — комментарии к задаче (вкладка «Комментарии», JSON-лента, canDelete, удаление автором/manager). Проверено: создание/удаление, can_write только у ответственного/manager
+- [x] **Этап 7** — права доступа: Policies (`ProjectPolicy`, `ProjectTaskPolicy`, `UserPolicy`), `authorize()` в контроллерах/FormRequest, `@can` в UI, флаг `can_drag`/`bc-nodrag` в SortableJS. Проверено: employee — move/complete чужой 403, `/users`, `/projects/1/edit`, `POST /projects` 403, комментарии чужой задачи read-only; manager — всё 200; UI: кнопки/шестерёнка скрыты, `can_move` в detail

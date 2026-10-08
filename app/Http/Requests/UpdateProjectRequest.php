@@ -8,11 +8,11 @@ use Illuminate\Validation\Rule;
 class UpdateProjectRequest extends FormRequest
 {
     /**
-     * Редактировать проект может только руководитель.
+     * Редактировать проект может только руководитель (ProjectPolicy::update).
      */
     public function authorize(): bool
     {
-        return $this->user()->role->value === 'manager';
+        return $this->user()->can('update', $this->route('project'));
     }
 
     /**

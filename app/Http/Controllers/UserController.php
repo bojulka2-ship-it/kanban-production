@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Enums\UserRole;
-use App\Http\Controllers\Concerns\AuthorizesManager;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -11,13 +10,12 @@ use Illuminate\View\View;
 
 class UserController extends Controller
 {
-    use AuthorizesManager;
     /**
      * Список пользователей (только руководитель).
      */
     public function index(): View
     {
-        $this->authorizeManager();
+        $this->authorize('manage', User::class);
 
         return view('users.index', [
             'users' => User::orderBy('name')->get(),
@@ -29,7 +27,7 @@ class UserController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        $this->authorizeManager();
+        $this->authorize('manage', User::class);
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
@@ -57,7 +55,7 @@ class UserController extends Controller
      */
     public function update(Request $request, User $user): RedirectResponse
     {
-        $this->authorizeManager();
+        $this->authorize('manage', User::class);
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
@@ -81,7 +79,7 @@ class UserController extends Controller
      */
     public function resetPassword(Request $request, User $user): RedirectResponse
     {
-        $this->authorizeManager();
+        $this->authorize('manage', User::class);
 
         $data = $request->validate([
             'password' => ['required', 'string', 'min:8'],
@@ -99,7 +97,7 @@ class UserController extends Controller
      */
     public function toggleActive(Request $request, User $user): RedirectResponse
     {
-        $this->authorizeManager();
+        $this->authorize('manage', User::class);
 
         // Нельзя лишить доступа самого себя
         if ($user->is($request->user())) {

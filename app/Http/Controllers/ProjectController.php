@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Concerns\AuthorizesManager;
 use App\Http\Requests\StoreProjectRequest;
 use App\Http\Requests\UpdateProjectRequest;
 use App\Models\Project;
@@ -15,8 +14,6 @@ use Illuminate\View\View;
 
 class ProjectController extends Controller
 {
-    use AuthorizesManager;
-
     /**
      * Главная: канбан-доска-матрица (активные проекты, архив скрыт по умолчанию).
      */
@@ -38,7 +35,7 @@ class ProjectController extends Controller
      */
     public function edit(Project $project): View
     {
-        $this->authorizeManager();
+        $this->authorize('update', $project);
 
         return view('projects.edit', [
             'project' => $project->load('projectTasks'),
@@ -53,7 +50,6 @@ class ProjectController extends Controller
      */
     public function store(StoreProjectRequest $request): RedirectResponse
     {
-        $this->authorizeManager();
         $data = $request->validated();
 
         DB::transaction(function () use ($data) {
@@ -81,7 +77,6 @@ class ProjectController extends Controller
      */
     public function update(UpdateProjectRequest $request, Project $project): RedirectResponse
     {
-        $this->authorizeManager();
         $data = $request->validated();
 
         DB::transaction(function () use ($data, $project) {
@@ -108,7 +103,7 @@ class ProjectController extends Controller
      */
     public function archive(Project $project): RedirectResponse
     {
-        $this->authorizeManager();
+        $this->authorize('archive', $project);
         $project->update(['is_archived' => true]);
 
         return redirect()->route('home')->with('success', 'Проект отправлен в архив');
@@ -119,7 +114,7 @@ class ProjectController extends Controller
      */
     public function restore(Project $project): RedirectResponse
     {
-        $this->authorizeManager();
+        $this->authorize('restore', $project);
         $project->update(['is_archived' => false]);
 
         return back()->with('success', 'Проект восстановлен');

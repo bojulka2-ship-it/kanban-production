@@ -9,12 +9,12 @@
     <div class="flex items-center justify-between mb-4">
         <h1 class="text-[24px] font-semibold">Доска</h1>
 
-        @if (auth()->user()->role->value === 'manager')
+        @can('create', App\Models\Project::class)
             <button type="button" @click="openCreate()"
                     class="rounded-lg bg-accent hover:bg-accent-hover text-white text-sm font-medium px-4 py-2 transition-colors">
                 Новый проект
             </button>
-        @endif
+        @endcan
     </div>
 
     {{-- Ошибки валидации после отправки формы --}}
@@ -65,14 +65,14 @@
                                     @endswitch
                                 </div>
                             </div>
-                            @if (auth()->user()->role->value === 'manager')
+                            @can('update', $project)
                                 <a href="{{ route('projects.edit', $project) }}" title="Редактировать" class="text-muted hover:text-accent shrink-0 mt-0.5">
                                     <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
                                         <path fill-rule="evenodd" d="M7.84 3.75A1.75 1.75 0 016.125 5.1H4.375A.375.375 0 004 5.475v10.15c0 .207.168.375.375.375h11.25a.375.375 0 00.375-.375V5.475a.375.375 0 00-.375-.375h-1.75A1.75 1.75 0 0112.16 3.75H7.84zm8.41 3.75A1.25 1.25 0 0116.5 8.5v8a1.5 1.5 0 01-1.5 1.5H5a1.5 1.5 0 01-1.5-1.5v-8A1.25 1.25 0 014.75 7.5h.625a1.875 1.875 0 001.874-1.735.375.375 0 01.375-.39h5.752a.375.375 0 01.375.39 1.875 1.875 0 001.874 1.735h.625z" clip-rule="evenodd"/>
                                         <path d="M12.5 11.5a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"/>
                                     </svg>
                                 </a>
-                            @endif
+                                @endcan
                         </div>
                     </td>
 
@@ -89,10 +89,11 @@
                                     $cardStatus = $ss ? $ss->status : 'pending';
                                 @endphp
                                 @if ($task && $ss)
-                                <div class="bccard bc-{{ $cardStatus }} {{ $cardStatus === 'in_progress' ? 'bc-draggable' : 'bc-static' }}"
+                                <div class="bccard bc-{{ $cardStatus }} {{ $cardStatus === 'in_progress' ? 'bc-draggable' : 'bc-static' }} {{ auth()->user()->can('move', $task) ? '' : 'bc-nodrag' }}"
                                      data-task-id="{{ $task->id }}"
                                      data-stage-id="{{ $stage->id }}"
                                      data-status="{{ $cardStatus }}"
+                                     data-can-move="{{ auth()->user()->can('move', $task) ? '1' : '0' }}"
                                      title="{{ $taskType->name }} — {{ $stage->name }}"
                                      @click="openTask({{ $task->id }})">
                                     <div class="flex items-start justify-between gap-1">
@@ -103,6 +104,7 @@
                                             <button type="button" @click="open = !open" class="text-muted hover:text-ink rounded leading-none px-0.5" aria-label="Меню">⋮</button>
                                             <div x-show="open" x-cloak @click.outside="open = false"
                                                  class="absolute right-0 top-full mt-1 z-20 w-48 bg-white border border-line rounded-lg shadow-lg py-1 text-[12px]">
+                                                @can('move', $task)
                                                 <div class="px-3 py-1 font-medium text-muted">Перенести на этап…</div>
                                                 @foreach ($stages as $menuStage)
                                                     <button type="button"
@@ -117,6 +119,7 @@
                                                         class="w-full text-left px-3 py-1.5 hover:bg-page">
                                                     Завершить этап
                                                 </button>
+                                                @endcan
                                                 <button type="button" @click="showCard()"
                                                         class="w-full text-left px-3 py-1.5 hover:bg-page">
                                                     Открыть карточку
@@ -213,7 +216,7 @@
                                 <span x-show="st.status === 'done'"
                                       class="rounded bg-green-50 text-done px-2 py-0.5 text-[11px] shrink-0">Завершено</span>
                             </div>
-                            <div class="flex gap-1.5 shrink-0">
+                            <div class="flex gap-1.5 shrink-0" x-show="modal.data.can_move">
                                 <button x-show="st.status === 'pending'" type="button" @click="doStage(st, 'start')"
                                         class="rounded-lg border border-accent/40 text-accent px-2.5 py-1 text-[12px] font-medium hover:border-accent">Начать</button>
                                 <button x-show="st.status === 'in_progress'" type="button" @click="doStage(st, 'finish')"
@@ -289,6 +292,7 @@
     </div>
 
     {{-- Модалка: новый проект (manager) --}}
+    @can('create', App\Models\Project::class)
     <div x-show="project.open" x-cloak class="fixed inset-0 z-40 flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-black/40" @click="project.open = false"></div>
         <div class="relative bg-white border border-line rounded-xl shadow-lg w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
@@ -345,6 +349,7 @@
             </form>
         </div>
     </div>
+    @endcan
 </div>
 
 <style>
@@ -360,6 +365,7 @@
     .bc-done { background: #F0FDF4; border-color: #16A34A; color: #16A34A; }
     .bc-draggable { }
     .bc-static { cursor: default; }
+    .bc-nodrag { cursor: default; }
 </style>
 
 <script>
@@ -371,7 +377,7 @@ function board() {
             tab: 'stages',
             loading: false,
             taskId: null,
-            data: { task: '', project: '', responsible: '', stages: [], history: [] },
+            data: { task: '', project: '', responsible: '', can_move: false, stages: [], history: [] },
             comments: [],
             canWrite: false,
         },
@@ -512,7 +518,7 @@ function cardMenu() {
             new Sortable(cell, {
                 group: { name: 'board', pull: true, put: true },
                 sort: false,
-                filter: '.bc-static',
+                filter: '.bc-static, .bc-nodrag',
                 onStart(evt) {
                     dragState = {
                         taskId: evt.item.dataset.taskId,
