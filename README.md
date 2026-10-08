@@ -69,6 +69,33 @@ php artisan test --filter=MyTasksTest
 php artisan test --filter=TaskTrackerTest
 ```
 
+## Деплой на Railway
+
+В репозитории есть `Dockerfile` (PHP 8.2 + `pdo_sqlite`) и `railway.json` (healthcheck `/login`, рестарт при сбое). База SQLite хранится на томе и переживает рестарты.
+
+1. Railway → **New Project → Deploy from GitHub repo** → выбрать `kanban-production` (ветка `master`).
+2. Сервис → **Variables** — заполнить по таблице ниже. `APP_KEY` получить командой `php artisan key:generate --show`.
+3. Сервис → **Volumes** — смонтировать том в **`/data`** (именно `/data`, а не `/app/database`: том перекрыл бы папки `migrations/`/`seeders/`, и миграции не нашлись бы).
+4. **Deploy**. Контейнер при старте выполняет `php artisan migrate --force`, затем `php artisan db:seed --force` (идемпотентно — только на пустой БД) и поднимает сервер на `$PORT`.
+5. Сервис → **Settings → Networking → Generate Domain** → скопировать адрес в `APP_URL` и передеплоить.
+
+| Переменная | Значение |
+|---|---|
+| `APP_NAME` | `Kanban` |
+| `APP_ENV` | `production` |
+| `APP_DEBUG` | `false` |
+| `APP_KEY` | вывод `php artisan key:generate --show` |
+| `APP_URL` | публичный адрес, напр. `https://kanban-production.up.railway.app` |
+| `APP_TIMEZONE` | `Europe/Moscow` |
+| `DB_CONNECTION` | `sqlite` |
+| `DB_DATABASE` | `/data/database.sqlite` |
+| `SESSION_DRIVER` | `database` |
+| `CACHE_STORE` | `database` |
+| `QUEUE_CONNECTION` | `database` |
+| `LOG_LEVEL` | `warning` |
+
+Проверка после деплоя: вход `manager@demo.ru` / `password` → перемещение карточки → F5 (изменение сохранилось).
+
 ## Полезные маршруты
 
 | Маршрут | Назначение |
@@ -99,4 +126,4 @@ tests/Feature/            AuthFlow, RoleAccess, Validation, Security, TaskTracke
 ## Статус
 
 Этапы 1–9, 11, 12 реализованы и покрыты тестами. Этап 10 (деплой на Railway)
-не выполняется — приложение запускается локально.
+подготовлен: `Dockerfile`, `railway.json` и инструкция в разделе «Деплой на Railway».

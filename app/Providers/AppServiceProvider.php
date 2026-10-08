@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\ProjectTask;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -21,6 +22,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // За HTTPS-терминацией Railway: ссылки и редиректы всегда по https
+        if ($this->app->environment('production')) {
+            URL::forceScheme('https');
+        }
+
         // Счётчик просроченных задач текущего пользователя для пункта «Мои задачи» в шапке
         View::composer('layouts.app', function ($view) {
             $overdue = auth()->check()
