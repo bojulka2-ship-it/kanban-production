@@ -39,12 +39,20 @@
 </head>
 <body class="min-h-screen bg-page font-sans text-[14px] text-ink">
     <header class="bg-white border-b border-line">
-        <div class="mx-auto max-w-7xl px-4 h-14 flex items-center justify-between">
+        <div class="mx-auto @yield('container', 'max-w-7xl') px-4 h-14 flex items-center justify-between">
             <a href="{{ route('home') }}" class="font-bold text-[16px] tracking-wide">
                 ПРОИЗВОДСТВО · Трекер
             </a>
 
             @auth
+            <div class="flex items-center gap-5">
+                @can('manage', App\Models\User::class)
+                    <a href="{{ route('users.index') }}"
+                       @class(['text-sm font-medium hover:text-accent', 'text-accent' => request()->routeIs('users.*')])>
+                        Пользователи
+                    </a>
+                @endcan
+
             <!-- Меню пользователя: Alpine-dropdown -->
             <div x-data="{ open: false }" class="relative">
                 <button type="button"
@@ -71,11 +79,12 @@
                     </form>
                 </div>
             </div>
+            </div>
             @endauth
         </div>
     </header>
 
-    <main class="mx-auto max-w-7xl px-4 py-6">
+    <main class="mx-auto @yield('container', 'max-w-7xl') px-4 py-6">
         @if (session('success'))
             <div class="mb-4 rounded-lg bg-green-50 border border-done/40 text-done px-4 py-3 text-[13px] font-medium">
                 {{ session('success') }}

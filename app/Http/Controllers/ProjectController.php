@@ -31,6 +31,8 @@ class ProjectController extends Controller
 
         $query = Project::with(['projectTasks.responsible', 'projectTasks.stageStatuses', 'projectTasks.taskType', 'projectTasks.project'])
             ->where('is_archived', $filters['archive'])
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->orderBy('start_date');
 
         // Ответственный хотя бы за одну задачу проекта

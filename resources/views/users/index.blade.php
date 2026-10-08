@@ -35,7 +35,11 @@
             </thead>
             <tbody>
                 @forelse ($users as $user)
-                <tr class="border-b border-line last:border-0 hover:bg-page/60">
+                <tr class="border-b border-line last:border-0 hover:bg-page/60"
+                    data-id="{{ $user->id }}"
+                    data-name="{{ $user->name }}"
+                    data-email="{{ $user->email }}"
+                    data-role="{{ $user->role->value }}">
                     <td class="px-4 py-3 font-medium">{{ $user->name }}</td>
                     <td class="px-4 py-3 text-muted">{{ $user->email }}</td>
                     <td class="px-4 py-3">
@@ -54,13 +58,11 @@
                     </td>
                     <td class="px-4 py-3 text-muted">{{ $user->created_at->format('d.m.Y') }}</td>
                     <td class="px-4 py-3 text-right whitespace-nowrap space-x-2">
-                        <button type="button"
-                                @click="openEdit({{ $user->id }}, @json($user->name), @json($user->email), @json($user->role->value))"
+                        <button type="button" @click="openEdit($el.closest('tr').dataset)"
                                 class="text-accent hover:underline font-medium">
                             Редактировать
                         </button>
-                        <button type="button"
-                                @click="openReset({{ $user->id }}, @json($user->name))"
+                        <button type="button" @click="openReset($el.closest('tr').dataset)"
                                 class="text-accent hover:underline font-medium">
                             Сбросить пароль
                         </button>
@@ -186,16 +188,16 @@
                 this.show = true;
             },
 
-            openEdit(id, name, email, role) {
+            openEdit(data) {
                 this.mode = 'edit';
-                this.action = '{{ route('users.index') }}/' + id;
-                this.form = { name: name, email: email, role: role, password: '' };
+                this.action = '{{ route('users.index') }}/' + data.id;
+                this.form = { name: data.name, email: data.email, role: data.role, password: '' };
                 this.show = true;
             },
 
-            openReset(id, name) {
-                this.resetId = id;
-                this.resetName = name;
+            openReset(data) {
+                this.resetId = data.id;
+                this.resetName = data.name;
                 this.resetPassword = '';
                 this.resetShow = true;
             },

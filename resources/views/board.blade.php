@@ -2,6 +2,9 @@
 
 @section('title', 'Доска')
 
+{{-- Доска — во всю ширину экрана (полная матрица 5 этапов), в отличие от остальных страниц --}}
+@section('container', 'max-w-[1920px]')
+
 @section('content')
 <div x-data="board()" class="relative">
 
@@ -85,7 +88,12 @@
 
             @if ($filters['q'] !== '' || $filters['responsible'] > 0 || $filters['status'] !== '' || $filters['overdue'] || $filters['archive'])
                 <a href="{{ route('home') }}" title="Сбросить фильтры"
-                   class="pb-1.5 text-lg leading-none text-muted hover:text-danger px-1">×</a>
+                   class="flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-sm font-medium text-muted hover:text-danger hover:border-danger/40 hover:bg-page transition-colors">
+                    <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                        <path d="M6 6l8 8M14 6l-8 8"/>
+                    </svg>
+                    Сбросить
+                </a>
             @endif
         </form>
     </div>
@@ -143,12 +151,26 @@
                                         @endif
                                     @endif
                                 </div>
+
+                                {{-- Архив: восстановление прямо из строки (страница редактирования для архива закрыта) --}}
+                                @if ($filters['archive'])
+                                    @can('restore', $project)
+                                        <form method="POST" action="{{ route('projects.restore', $project) }}" class="mt-2">
+                                            @csrf
+                                            <button type="submit"
+                                                    class="rounded-lg border border-line bg-white px-3 py-1.5 text-[12px] font-medium hover:bg-page">
+                                                Восстановить
+                                            </button>
+                                        </form>
+                                    @endcan
+                                @endif
                             </div>
-                            @can('update', $project)
+                        </div>
+                        @can('update', $project)
                                 <a href="{{ route('projects.edit', $project) }}" title="Редактировать" class="text-muted hover:text-accent shrink-0 mt-0.5">
-                                    <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fill-rule="evenodd" d="M7.84 3.75A1.75 1.75 0 016.125 5.1H4.375A.375.375 0 004 5.475v10.15c0 .207.168.375.375.375h11.25a.375.375 0 00.375-.375V5.475a.375.375 0 00-.375-.375h-1.75A1.75 1.75 0 0112.16 3.75H7.84zm8.41 3.75A1.25 1.25 0 0116.5 8.5v8a1.5 1.5 0 01-1.5 1.5H5a1.5 1.5 0 01-1.5-1.5v-8A1.25 1.25 0 014.75 7.5h.625a1.875 1.875 0 001.874-1.735.375.375 0 01.375-.39h5.752a.375.375 0 01.375.39 1.875 1.875 0 001.874 1.735h.625z" clip-rule="evenodd"/>
-                                        <path d="M12.5 11.5a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"/>
+                                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M21.731 2.269a2.625 2.625 0 0 0-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 0 0 0-3.712Z"/>
+                                        <path d="M19.513 8.199l-3.712-3.712-12.15 12.15a5.25 5.25 0 0 0-1.32 2.214l-.8 2.685a.75.75 0 0 0 .933.933l2.685-.8a5.25 5.25 0 0 0 2.214-1.32L19.513 8.2Z"/>
                                     </svg>
                                 </a>
                                 @endcan
@@ -287,6 +309,19 @@
                         <span class="rounded bg-slate-100 text-muted px-2 py-0.5 text-[11px]">Архив</span>
                     @endif
                 </div>
+
+                {{-- Архив: восстановление прямо из карточки --}}
+                @if ($filters['archive'])
+                    @can('restore', $project)
+                        <form method="POST" action="{{ route('projects.restore', $project) }}" class="mt-2">
+                            @csrf
+                            <button type="submit"
+                                    class="rounded-lg border border-line bg-white px-3 py-2 text-[12px] font-medium hover:bg-page">
+                                Восстановить
+                            </button>
+                        </form>
+                    @endcan
+                @endif
 
                 {{-- Мини-прогресс: по каждой задаче выполнено этапов из 5 --}}
                 <div class="mt-2.5 space-y-1.5">
@@ -647,7 +682,7 @@ function board() {
         },
         commentBody: '',
         init() {
-            document.addEventListener('ask-complete', (e) => {
+            window.addEventListener('ask-complete', (e) => {
                 this.pop = {
                     ask: true,
                     taskId: e.detail.taskId,
@@ -657,7 +692,7 @@ function board() {
                     y: e.detail.y,
                 };
             });
-            document.addEventListener('open-task', (e) => {
+            window.addEventListener('open-task', (e) => {
                 this.openTask(e.detail.taskId, e.detail.tab);
             });
         },
@@ -697,6 +732,9 @@ function board() {
             if (!this.pop.taskId) return;
             window.completeStage(this.pop.taskId, this.pop.stageId);
             this.keep();
+        },
+        keep() {
+            this.pop.ask = false;
         },
 nl2brHtml(text) {
             // Тело уже экранировано на сервере (CommentController::formatted) — только переносы строк
@@ -748,13 +786,23 @@ nl2brHtml(text) {
                 alert('Удалить комментарий нельзя.');
             });
         },
+    };
+}
 
 function cardMenu() {
     return {
         open: false,
         moveTo(stageId) {
-            const taskId = this.$el.closest('.bccard').dataset.taskId;
-            window.moveTask(taskId, stageId, {});
+            const card = this.$el.closest('.bccard');
+            const cell = this.$el.closest('.kanban-cell');
+            const pos = popoverPos(card);
+            window.moveTask(card.dataset.taskId, stageId, {
+                fromStageId: card.dataset.stageId,
+                fromStageName: cell.dataset.stageName,
+                showPopover: true,
+                x: pos.x,
+                y: pos.y,
+            });
             this.open = false;
         },
         finish() {
@@ -774,6 +822,15 @@ function cardMenu() {
 
     let dragState = null;
 
+    // Позиция поповера у карточки с ограничением по вьюпорту (не уезжает за экран)
+    function popoverPos(anchor) {
+        const r = anchor.getBoundingClientRect();
+        const w = 288, h = 150, m = 8;
+        const x = Math.min(Math.max(r.left + r.width / 2, w / 2 + m), window.innerWidth - w / 2 - m);
+        const y = Math.min(Math.max(r.bottom + m, m), window.innerHeight - h - m);
+        return { x, y };
+    }
+
     function initBoard() {
         // На мобильных (<768) таблица скрыта, drag отключён — перенос через меню ⋮
         if (window.innerWidth < 768) return;
@@ -787,24 +844,34 @@ function cardMenu() {
                         taskId: evt.item.dataset.taskId,
                         fromStageId: cell.dataset.stageId,
                         fromStageName: cell.dataset.stageName,
+                        // Запоминаем место карточки, чтобы вернуть её точно туда же
+                        nextSibling: evt.item.nextElementSibling,
                     };
                 },
                 onAdd(evt) {
-                    // DOM не двигаем — только данные. Возвращаем карточку обратно.
-                    evt.from.appendChild(evt.item);
+                    // DOM не двигаем — только данные. Возвращаем карточку на исходную позицию
+                    // (сортировка внутри ячейки фиксирована, порядок карточек не меняется).
+                    const from = evt.from;
+                    if (dragState && dragState.nextSibling && from.contains(dragState.nextSibling)) {
+                        from.insertBefore(evt.item, dragState.nextSibling);
+                    } else {
+                        from.appendChild(evt.item);
+                    }
                     if (!dragState) return;
                     const toCell = evt.to.closest('.kanban-cell');
                     const toStageId = toCell?.dataset.stageId;
                     if (!toStageId || toStageId === dragState.fromStageId) return;
 
-                    const rect = cell.getBoundingClientRect();
+                    // Поповер показываем у исходной карточки (которую покидаем)
+                    const pos = popoverPos(evt.item);
                     window.moveTask(dragState.taskId, toStageId, {
                         fromStageId: dragState.fromStageId,
                         fromStageName: dragState.fromStageName,
                         showPopover: true,
-                        x: rect.left + rect.width / 2,
-                        y: rect.top + rect.height + 8,
+                        x: pos.x,
+                        y: pos.y,
                     });
+                    dragState = null;
                 },
             });
         });
@@ -820,7 +887,7 @@ function cardMenu() {
         }).then(r => r.json()).then(data => {
             if (!data.ok) return;
             renderCardStatus(taskId, stageId, data.status, data.entered_at);
-            if (opts.showPopover && dragState) {
+            if (opts.showPopover) {
                 window.dispatchEvent(new CustomEvent('ask-complete', {
                     detail: {
                         taskId,
