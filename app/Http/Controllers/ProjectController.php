@@ -9,21 +9,56 @@ use App\Models\Stage;
 use App\Models\TaskType;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class ProjectController extends Controller
 {
     /**
-     * Главная: канбан-доска-матрица (активные проекты, архив скрыт по умолчанию).
+     * Главная: канбан-доска-матрица. Фильтры — серверные, через GET-параметры:
+     * q (поиск по названию), responsible, status, overdue, archive (0/1).
      */
-    public function index(): View
+    public function index(Request $request): View
     {
+        $filters = [
+            'q' => trim((string) $request->query('q', '')),
+            'responsible' => (int) $request->query('responsible', 0),
+            'status' => (string) $request->query('status', ''),
+            'overdue' => $request->query('overdue') === '1',
+            'archive' => $request->query('archive') === '1',
+        ];
+
+        $query = Project::with(['projectTasks.responsible', 'projectTasks.stageStatuses', 'projectTasks.project'])
+            ->where('is_archived', $filters['archive'])
+            ->orderBy('start_date');
+
+        // Ответственный хотя бы за одну задачу проекта
+        if ($filters['responsible'] > 0) {
+            $query->whereHas('projectTasks', fn ($q) => $q->where('responsible_id', $filters['responsible']));
+        }
+
+        // Статус проекта ('' — без фильтра)
+        if ($filters['status'] !== '') {
+            $query->where('status', $filters['status']);
+        }
+
+        // Только просроченные: дедлайн в прошлом у активного проекта
+        if ($filters['overdue']) {
+            $query->where('status', 'active')->where('due_date', '<', now()->toDateString());
+        }
+
+        $projects = $query->get();
+
+        // Поиск по названию: mb_stripos — регистронезависимый, работает и с кириллицей
+        // (SQLite LIKE регистронезависим только для ASCII). Проектов до 20 — фильтруем в памяти.
+        if ($filters['q'] !== '') {
+            $projects = $projects->filter(fn ($p) => mb_stripos($p->title, $filters['q']) !== false);
+        }
+
         return view('board', [
-            'projects' => Project::with(['projectTasks.responsible', 'projectTasks.stageStatuses'])
-                ->where('is_archived', false)
-                ->orderBy('start_date')
-                ->get(),
+            'projects' => $projects,
+            'filters' => $filters,
             'activeUsers' => $this->activeUsers(),
             'stages' => Stage::orderBy('sort_order')->get(),
             'taskTypes' => TaskType::orderBy('sort_order')->get(),

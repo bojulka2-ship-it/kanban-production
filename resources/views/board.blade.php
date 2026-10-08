@@ -26,6 +26,70 @@
         </div>
     @endif
 
+    {{-- Панель фильтров: серверные GET-параметры, комбинируются --}}
+    <div class="mb-4" x-data="{ open: false, mobile: window.matchMedia('(max-width: 767px)').matches }">
+        <button type="button" x-show="mobile" @click="open = !open"
+                class="mb-2 w-full rounded-lg border border-line bg-white px-4 py-2 text-sm font-medium hover:bg-page">
+            Фильтры
+        </button>
+
+        <form method="GET" action="{{ route('home') }}"
+              x-show="!mobile || open" x-cloak
+              class="flex flex-wrap items-end gap-3 rounded-xl bg-white border border-line shadow-sm px-4 py-3">
+            <div class="flex flex-col gap-1 min-w-[170px] flex-1 max-w-[260px]">
+                <label class="text-[11px] font-medium text-muted uppercase">Поиск</label>
+                <input type="search" name="q" value="{{ $filters['q'] }}" placeholder="Название проекта…"
+                       class="rounded-lg border border-line px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent">
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-[11px] font-medium text-muted uppercase">Ответственный</label>
+                <select name="responsible" @change="$el.form.submit()"
+                        class="rounded-lg border border-line px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent">
+                    <option value="">Все ответственные</option>
+                    @foreach ($activeUsers as $u)
+                        <option value="{{ $u->id }}" @selected($filters['responsible'] === $u->id)>{{ $u->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-[11px] font-medium text-muted uppercase">Статус</label>
+                <select name="status" @change="$el.form.submit()"
+                        class="rounded-lg border border-line px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent">
+                    <option value="">Все активные</option>
+                    @foreach (['active' => 'Активен', 'paused' => 'Приостановлен', 'completed' => 'Завершён', 'cancelled' => 'Отменён'] as $value => $label)
+                        <option value="{{ $value }}" @selected($filters['status'] === $value)>{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <label class="flex items-center gap-2 pb-1.5 text-sm cursor-pointer select-none">
+                <input type="checkbox" name="overdue" value="1" @checked($filters['overdue']) @change="$el.form.submit()"
+                       class="rounded border-line text-accent focus:ring-accent/20">
+                Только просроченные
+            </label>
+
+            <div class="flex items-center gap-4 pb-1.5">
+                <label class="flex items-center gap-1.5 text-sm cursor-pointer select-none">
+                    <input type="radio" name="archive" value="0" @checked(!$filters['archive']) @change="$el.form.submit()"
+                           class="border-line text-accent focus:ring-accent/20">
+                    Активные
+                </label>
+                <label class="flex items-center gap-1.5 text-sm cursor-pointer select-none">
+                    <input type="radio" name="archive" value="1" @checked($filters['archive']) @change="$el.form.submit()"
+                           class="border-line text-accent focus:ring-accent/20">
+                    Архив
+                </label>
+            </div>
+
+            @if ($filters['q'] !== '' || $filters['responsible'] > 0 || $filters['status'] !== '' || $filters['overdue'] || $filters['archive'])
+                <a href="{{ route('home') }}" title="Сбросить фильтры"
+                   class="pb-1.5 text-lg leading-none text-muted hover:text-danger px-1">×</a>
+            @endif
+        </form>
+    </div>
+
     {{-- Доска: проекты × 5 этапов × 4 задачи --}}
     <div class="bg-white border border-line rounded-xl shadow-sm overflow-auto">
         <table class="border-separate border-spacing-0 min-w-full">
@@ -48,7 +112,7 @@
                                 <div class="text-[11px] text-muted mt-0.5 whitespace-nowrap">
                                     {{ $project->start_date->format('d.m.Y') }} → {{ $project->due_date->format('d.m.Y') }}
                                 </div>
-                                <div class="mt-1.5">
+                                <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
                                     @switch($project->status)
                                         @case('active')
                                             <span class="rounded bg-accent/10 text-accent font-medium px-2 py-0.5 text-[11px]">Активен</span>
@@ -63,6 +127,21 @@
                                             <span class="rounded bg-red-50 text-danger font-medium px-2 py-0.5 text-[11px]">Отменён</span>
                                             @break
                                     @endswitch
+
+                                    {{-- Подсветка сроков: красный просрочен, жёлтый ≤3 дней (только активный неархивный) --}}
+                                    @if ($project->status === 'active' && !$project->is_archived)
+                                        @php
+                                            // Отрицательное — дедлайн в прошлом (просрочен)
+                                            $daysLeft = (int) now()->startOfDay()->diffInDays($project->due_date->copy()->startOfDay(), false);
+                                        @endphp
+                                        @if ($daysLeft < 0)
+                                            <span class="rounded bg-red-50 text-danger font-medium px-2 py-0.5 text-[11px]">Просрочен на {{ -$daysLeft }} дн.</span>
+                                        @elseif ($daysLeft <= 3)
+                                            <span class="rounded bg-amber-50 text-warn font-medium px-2 py-0.5 text-[11px]">
+                                                {{ $daysLeft === 0 ? 'Осталось сегодня' : 'Осталось ' . $daysLeft . ' дн.' }}
+                                            </span>
+                                        @endif
+                                    @endif
                                 </div>
                             </div>
                             @can('update', $project)
@@ -131,6 +210,9 @@
                                     <div class="flex items-center justify-between mt-1">
                                         <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-accent/10 text-accent text-[10px] font-bold shrink-0">{{ $task->responsible?->initials }}</span>
                                         <div class="flex items-center gap-1.5">
+                                            @if ($filters['archive'])
+                                                <span class="rounded bg-slate-100 text-muted px-1.5 py-0.5 text-[10px] shrink-0">Архив</span>
+                                            @endif
                                             <span data-role="date" title="История этапа"
                                                   class="text-[10px] text-muted hover:text-accent cursor-pointer {{ $cardStatus === 'in_progress' ? '' : 'hidden' }}"
                                                   @click.stop="openTask({{ $task->id }}, 'history')">{{ $ss->entered_at?->format('d.m') }}</span>
@@ -146,8 +228,14 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="6" class="px-4 py-10 text-center text-muted">
-                        Нет активных проектов. Создайте проект.
+                    <td colspan="6" class="px-4 py-10 text-center">
+                        @if ($filters['q'] !== '' || $filters['responsible'] > 0 || $filters['status'] !== '' || $filters['overdue'] || $filters['archive'])
+                            <p class="text-muted text-[14px]">Ничего не найдено, измените фильтры</p>
+                            <a href="{{ route('home') }}"
+                               class="inline-block mt-3 rounded-lg border border-line px-4 py-2 text-sm font-medium hover:bg-page">Сбросить</a>
+                        @else
+                            <p class="text-muted">Нет активных проектов. Создайте проект.</p>
+                        @endif
                     </td>
                 </tr>
                 @endforelse

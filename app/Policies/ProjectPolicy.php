@@ -37,7 +37,8 @@ class ProjectPolicy
      */
     public function update(User $user, Project $project): bool
     {
-        return $user->role->value === 'manager';
+        // Архивный проект — только просмотр
+        return $user->role->value === 'manager' && ! $project->is_archived;
     }
 
     /**
@@ -67,6 +68,6 @@ class ProjectPolicy
     // Для удобства: archive
     public function archive(User $user, Project $project): bool
     {
-        return $user->role->value === 'manager';
+        return $user->role->value === 'manager' && ! $project->is_archived;
     }
 }

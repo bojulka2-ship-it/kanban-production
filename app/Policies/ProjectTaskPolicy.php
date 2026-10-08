@@ -56,6 +56,11 @@ class ProjectTaskPolicy
 
     private function canManipulate(User $user, ProjectTask $projectTask): bool
     {
+        // Архивный проект — только просмотр (движение, этапы, комментарии запрещены)
+        if ($projectTask->project->is_archived) {
+            return false;
+        }
+
         if ($user->role->value === 'manager') {
             return true;
         }

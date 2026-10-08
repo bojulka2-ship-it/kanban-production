@@ -60,6 +60,11 @@ class CommentController extends Controller
      */
     public function destroy(Comment $comment): JsonResponse
     {
+        // Архивный проект — только просмотр
+        if ($comment->projectTask->project->is_archived) {
+            abort(403, 'Проект в архиве — только просмотр');
+        }
+
         $user = auth()->user();
 
         if ($user->role->value !== 'manager' && $comment->user_id !== $user->id) {
