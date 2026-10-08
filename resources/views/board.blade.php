@@ -90,14 +90,14 @@
         </form>
     </div>
 
-    {{-- Доска: проекты × 5 этапов × 4 задачи --}}
-    <div class="bg-white border border-line rounded-xl shadow-sm overflow-auto">
+    {{-- Доска (md+): проекты × 5 этапов × 4 задачи. Свой скролл: шапка и колонка «Проект» sticky --}}
+    <div class="hidden md:block bg-white border border-line rounded-xl shadow-sm overflow-auto max-h-[calc(100vh-13rem)]">
         <table class="border-separate border-spacing-0 min-w-full">
             <thead>
                 <tr>
-                    <th class="sticky left-0 z-20 bg-white border-r border-b border-line px-3 py-2.5 text-left min-w-[220px] max-w-[260px] text-[12px] font-semibold text-muted uppercase">Проект</th>
+                    <th class="sticky left-0 top-0 z-30 bg-white border-r border-b border-line px-3 py-2.5 text-left min-w-[220px] max-w-[260px] text-[12px] font-semibold text-muted uppercase">Проект</th>
                     @foreach ($stages as $stage)
-                        <th class="border-r border-b border-line px-3 py-2.5 text-left text-[12px] font-semibold text-muted uppercase whitespace-nowrap min-w-[170px]">{{ $stage->name }}</th>
+                        <th class="sticky top-0 z-10 bg-white border-r border-b border-line px-3 py-2.5 text-left text-[12px] font-semibold text-muted uppercase whitespace-nowrap min-w-[170px]">{{ $stage->name }}</th>
                     @endforeach
                 </tr>
             </thead>
@@ -180,7 +180,8 @@
 
                                         {{-- Меню ⋮ — альтернатива drag, работает всегда --}}
                                         <div class="relative shrink-0" x-data="cardMenu()" @click.stop>
-                                            <button type="button" @click="open = !open" class="text-muted hover:text-ink rounded leading-none px-0.5" aria-label="Меню">⋮</button>
+                                            <button type="button" @click="open = !open"
+                                                    class="text-muted hover:text-ink rounded leading-none flex items-center justify-center min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 md:px-0.5" aria-label="Меню">⋮</button>
                                             <div x-show="open" x-cloak @click.outside="open = false"
                                                  class="absolute right-0 top-full mt-1 z-20 w-48 bg-white border border-line rounded-lg shadow-lg py-1 text-[12px]">
                                                 @can('move', $task)
@@ -188,19 +189,19 @@
                                                 @foreach ($stages as $menuStage)
                                                     <button type="button"
                                                             @click="moveTo({{ $menuStage->id }})"
-                                                            class="w-full text-left px-3 py-1.5 hover:bg-page"
+                                                            class="w-full text-left px-3 py-3 md:py-1.5 hover:bg-page"
                                                             :class="{'opacity-40 pointer-events-none': {{ $menuStage->id }} === {{ $stage->id }}}">
                                                         {{ $menuStage->name }}
                                                     </button>
                                                 @endforeach
                                                 <div class="border-t border-line my-1"></div>
                                                 <button type="button" @click="finish()"
-                                                        class="w-full text-left px-3 py-1.5 hover:bg-page">
+                                                        class="w-full text-left px-3 py-3 md:py-1.5 hover:bg-page">
                                                     Завершить этап
                                                 </button>
                                                 @endcan
                                                 <button type="button" @click="showCard()"
-                                                        class="w-full text-left px-3 py-1.5 hover:bg-page">
+                                                        class="w-full text-left px-3 py-3 md:py-1.5 hover:bg-page">
                                                     Открыть карточку
                                                 </button>
                                             </div>
@@ -243,6 +244,169 @@
         </table>
     </div>
 
+    {{-- Мобильный список проектов (<768): карточки вместо таблицы. Тап → экран проекта --}}
+    <div class="md:hidden space-y-3">
+        @forelse ($projects as $project)
+            <button type="button" @click="openProject({{ $project->id }})"
+                    class="w-full text-left bg-white border border-line rounded-xl shadow-sm px-4 py-3 active:bg-page">
+                <div class="font-semibold text-[14px] truncate">{{ $project->title }}</div>
+                <div class="text-[11px] text-muted mt-0.5">
+                    {{ $project->start_date->format('d.m.Y') }} → {{ $project->due_date->format('d.m.Y') }}
+                </div>
+
+                <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                    @switch($project->status)
+                        @case('active')
+                            <span class="rounded bg-accent/10 text-accent font-medium px-2 py-0.5 text-[11px]">Активен</span>
+                            @break
+                        @case('paused')
+                            <span class="rounded bg-amber-50 text-warn font-medium px-2 py-0.5 text-[11px]">Приостановлен</span>
+                            @break
+                        @case('completed')
+                            <span class="rounded bg-green-50 text-done font-medium px-2 py-0.5 text-[11px]">Завершён</span>
+                            @break
+                        @case('cancelled')
+                            <span class="rounded bg-red-50 text-danger font-medium px-2 py-0.5 text-[11px]">Отменён</span>
+                            @break
+                    @endswitch
+
+                    @if ($project->status === 'active' && !$project->is_archived)
+                        @php
+                            $daysLeft = (int) now()->startOfDay()->diffInDays($project->due_date->copy()->startOfDay(), false);
+                        @endphp
+                        @if ($daysLeft < 0)
+                            <span class="rounded bg-red-50 text-danger font-medium px-2 py-0.5 text-[11px]">Просрочен на {{ -$daysLeft }} дн.</span>
+                        @elseif ($daysLeft <= 3)
+                            <span class="rounded bg-amber-50 text-warn font-medium px-2 py-0.5 text-[11px]">
+                                {{ $daysLeft === 0 ? 'Осталось сегодня' : 'Осталось ' . $daysLeft . ' дн.' }}
+                            </span>
+                        @endif
+                    @endif
+
+                    @if ($filters['archive'])
+                        <span class="rounded bg-slate-100 text-muted px-2 py-0.5 text-[11px]">Архив</span>
+                    @endif
+                </div>
+
+                {{-- Мини-прогресс: по каждой задаче выполнено этапов из 5 --}}
+                <div class="mt-2.5 space-y-1.5">
+                    @foreach ($project->projectTasks->sortBy('taskType.sort_order') as $task)
+                        @php
+                            $doneCount = $task->stageStatuses->where('status', 'done')->count();
+                            $totalCount = $stages->count();
+                            $isComplete = $doneCount === $totalCount;
+                        @endphp
+                        <div class="flex items-center gap-2">
+                            <span class="text-[11px] text-muted w-24 shrink-0 truncate">{{ $task->taskType->name }}</span>
+                            <div class="flex-1 h-1.5 rounded-full bg-line overflow-hidden">
+                                <div class="h-full rounded-full {{ $isComplete ? 'bg-done' : 'bg-accent' }}"
+                                     style="width: {{ (int) round($doneCount / max($totalCount, 1) * 100) }}%"></div>
+                            </div>
+                            <span class="text-[11px] {{ $isComplete ? 'text-done font-medium' : 'text-muted' }} w-7 text-right">{{ $doneCount }}/{{ $totalCount }}</span>
+                        </div>
+                    @endforeach
+                </div>
+            </button>
+        @empty
+            <div class="bg-white border border-line rounded-xl px-4 py-8 text-center">
+                @if ($filters['q'] !== '' || $filters['responsible'] > 0 || $filters['status'] !== '' || $filters['overdue'] || $filters['archive'])
+                    <p class="text-muted text-[14px]">Ничего не найдено, измените фильтры</p>
+                    <a href="{{ route('home') }}"
+                       class="inline-block mt-3 rounded-lg border border-line px-4 py-2 text-sm font-medium hover:bg-page">Сбросить</a>
+                @else
+                    <p class="text-muted">Нет активных проектов. Создайте проект.</p>
+                @endif
+            </div>
+        @endforelse
+    </div>
+
+    {{-- Экран проекта (mobile <768): 5 секций этапов вертикально, drag отключён, перенос через меню ⋮ --}}
+    <div x-show="proj.open" x-cloak @keydown.escape.window="closeProject()"
+         class="fixed inset-0 z-40 bg-white overflow-y-auto md:hidden">
+        @foreach ($projects as $project)
+        <div x-show="proj.id === {{ $project->id }}">
+            {{-- Шапка с возвратом в список --}}
+            <div class="sticky top-0 bg-white border-b border-line px-2 py-2 flex items-center gap-2">
+                <button type="button" @click="closeProject()" aria-label="Назад"
+                        class="min-h-[44px] min-w-[44px] flex items-center justify-center text-[20px] text-ink">←</button>
+                <div class="min-w-0">
+                    <div class="font-semibold text-[15px] truncate">{{ $project->title }}</div>
+                    <div class="text-[11px] text-muted">
+                        {{ $project->start_date->format('d.m.Y') }} → {{ $project->due_date->format('d.m.Y') }}
+                        · {{ ['active' => 'Активен', 'paused' => 'Приостановлен', 'completed' => 'Завершён', 'cancelled' => 'Отменён'][$project->status] ?? $project->status }}
+                    </div>
+                </div>
+            </div>
+
+            {{-- Секции этапов --}}
+            <div class="px-3 py-3 space-y-4 pb-10">
+                @foreach ($stages as $stage)
+                <section>
+                    <h3 class="text-[12px] font-semibold text-muted uppercase mb-2">{{ $stage->name }}</h3>
+                    <div class="space-y-2">
+                        @foreach ($taskTypes as $taskType)
+                            @php
+                                $task = $project->projectTasks->firstWhere('task_type_id', $taskType->id);
+                                $ss = $task?->stageStatuses->firstWhere('stage_id', $stage->id);
+                                $cardStatus = $ss ? $ss->status : 'pending';
+                            @endphp
+                            @if ($task && $ss)
+                            <div class="bccard bc-{{ $cardStatus }}"
+                                 data-task-id="{{ $task->id }}"
+                                 data-stage-id="{{ $stage->id }}"
+                                 data-status="{{ $cardStatus }}">
+                                <div class="flex items-center gap-2">
+                                    <button type="button" @click="openTask({{ $task->id }})"
+                                            class="flex-1 min-w-0 text-left min-h-[44px] flex flex-col justify-center gap-0.5">
+                                        <span class="text-[13px] font-medium truncate">{{ $taskType->name }}</span>
+                                        <span class="flex items-center gap-2 text-[11px]">
+                                            <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-accent/10 text-accent text-[10px] font-bold">{{ $task->responsible?->initials }}</span>
+                                            <span class="text-muted">{{ $task->responsible?->name }}</span>
+                                            <span data-role="date" class="{{ $cardStatus === 'in_progress' ? '' : 'hidden' }}">{{ $ss->entered_at?->format('d.m.Y') }}</span>
+                                            <span data-role="check" class="font-bold text-done {{ $cardStatus === 'done' ? '' : 'hidden' }}">✓</span>
+                                        </span>
+                                    </button>
+
+                                    {{-- Меню ⋮: перенос без drag --}}
+                                    <div class="relative shrink-0" x-data="cardMenu()" @click.stop>
+                                        <button type="button" @click="open = !open"
+                                                class="text-muted hover:text-ink rounded leading-none flex items-center justify-center min-h-[44px] min-w-[44px]" aria-label="Меню">⋮</button>
+                                        <div x-show="open" x-cloak @click.outside="open = false"
+                                             class="absolute right-0 top-full mt-1 z-20 w-52 bg-white border border-line rounded-lg shadow-lg py-1 text-[13px]">
+                                            @can('move', $task)
+                                            <div class="px-3 py-1.5 font-medium text-muted">Перенести на этап…</div>
+                                            @foreach ($stages as $menuStage)
+                                                <button type="button"
+                                                        @click="moveTo({{ $menuStage->id }})"
+                                                        class="w-full text-left px-3 py-3 hover:bg-page"
+                                                        :class="{'opacity-40 pointer-events-none': {{ $menuStage->id }} === {{ $stage->id }}}">
+                                                    {{ $menuStage->name }}
+                                                </button>
+                                            @endforeach
+                                            <div class="border-t border-line my-1"></div>
+                                            <button type="button" @click="finish()"
+                                                    class="w-full text-left px-3 py-3 hover:bg-page">
+                                                Завершить этап
+                                            </button>
+                                            @endcan
+                                            <button type="button" @click="showCard()"
+                                                    class="w-full text-left px-3 py-3 hover:bg-page">
+                                                Открыть карточку
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            @endif
+                        @endforeach
+                    </div>
+                </section>
+                @endforeach
+            </div>
+        </div>
+        @endforeach
+    </div>
+
     {{-- Поповер «Завершить этап?» у исходной колонки после переноса --}}
     <div x-show="pop.ask" x-cloak
          class="fixed z-50 w-72 bg-white border border-line rounded-lg shadow-xl p-4"
@@ -258,9 +422,9 @@
 
     {{-- Модалка карточки задачи: вкладки «Этапы» / «История» / «Комментарии» --}}
     <div x-show="modal.open" x-cloak @keydown.escape.window="modal.open = false"
-         class="fixed inset-0 z-40 flex items-center justify-center p-4">
+         class="fixed inset-0 z-40 flex items-center justify-center p-0 md:p-4">
         <div class="absolute inset-0 bg-black/40" @click="modal.open = false"></div>
-        <div class="relative bg-white border border-line rounded-xl shadow-lg w-full max-w-xl max-h-[90vh] flex flex-col">
+        <div class="relative bg-white border-0 md:border border-line rounded-none md:rounded-xl shadow-lg w-full md:max-w-xl h-full md:h-auto md:max-h-[90vh] flex flex-col">
             <div class="p-5 pb-0 border-b border-line">
                 <div class="flex items-start justify-between gap-3">
                     <div class="min-w-0">
@@ -306,11 +470,11 @@
                             </div>
                             <div class="flex gap-1.5 shrink-0" x-show="modal.data.can_move">
                                 <button x-show="st.status === 'pending'" type="button" @click="doStage(st, 'start')"
-                                        class="rounded-lg border border-accent/40 text-accent px-2.5 py-1 text-[12px] font-medium hover:border-accent">Начать</button>
+                                        class="rounded-lg border border-accent/40 text-accent px-3 md:px-2.5 py-2 md:py-1 min-h-[44px] md:min-h-0 text-[12px] font-medium hover:border-accent">Начать</button>
                                 <button x-show="st.status === 'in_progress'" type="button" @click="doStage(st, 'finish')"
-                                        class="rounded-lg border border-line px-2.5 py-1 text-[12px] font-medium hover:bg-page">Завершить</button>
+                                        class="rounded-lg border border-line px-3 md:px-2.5 py-2 md:py-1 min-h-[44px] md:min-h-0 text-[12px] font-medium hover:bg-page">Завершить</button>
                                 <button x-show="st.status === 'done'" type="button" @click="doStage(st, 'reopen')"
-                                        class="rounded-lg border border-accent/40 text-accent px-2.5 py-1 text-[12px] font-medium hover:border-accent">Вернуть в работу</button>
+                                        class="rounded-lg border border-accent/40 text-accent px-3 md:px-2.5 py-2 md:py-1 min-h-[44px] md:min-h-0 text-[12px] font-medium hover:border-accent">Вернуть в работу</button>
                             </div>
                         </div>
                     </template>
@@ -381,9 +545,9 @@
 
     {{-- Модалка: новый проект (manager) --}}
     @can('create', App\Models\Project::class)
-    <div x-show="project.open" x-cloak class="fixed inset-0 z-40 flex items-center justify-center p-4">
+    <div x-show="project.open" x-cloak class="fixed inset-0 z-40 flex items-center justify-center p-0 md:p-4">
         <div class="absolute inset-0 bg-black/40" @click="project.open = false"></div>
-        <div class="relative bg-white border border-line rounded-xl shadow-lg w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+        <div class="relative bg-white border-0 md:border border-line rounded-none md:rounded-xl shadow-lg w-full md:max-w-lg p-4 md:p-6 h-full md:h-auto md:max-h-[90vh] overflow-y-auto">
             <h2 class="text-[16px] font-semibold mb-4">Новый проект</h2>
 
             <form method="POST" action="{{ route('projects.store') }}" class="space-y-4">
@@ -472,6 +636,14 @@ function board() {
         project: {
             open: false,
             form: { title: '', start_date: '', due_date: '', responsible: {} },
+        },
+        // Экран проекта на мобильных (оверлей из данных страницы, без запроса)
+        proj: { open: false, id: null },
+        openProject(id) {
+            this.proj = { open: true, id: id };
+        },
+        closeProject() {
+            this.proj = { open: false, id: null };
         },
         commentBody: '',
         init() {
@@ -602,6 +774,8 @@ function cardMenu() {
     let dragState = null;
 
     function initBoard() {
+        // На мобильных (<768) таблица скрыта, drag отключён — перенос через меню ⋮
+        if (window.innerWidth < 768) return;
         document.querySelectorAll('.kanban-cell').forEach(cell => {
             new Sortable(cell, {
                 group: { name: 'board', pull: true, put: true },

@@ -29,7 +29,7 @@ class ProjectController extends Controller
             'archive' => $request->query('archive') === '1',
         ];
 
-        $query = Project::with(['projectTasks.responsible', 'projectTasks.stageStatuses', 'projectTasks.project'])
+        $query = Project::with(['projectTasks.responsible', 'projectTasks.stageStatuses', 'projectTasks.taskType', 'projectTasks.project'])
             ->where('is_archived', $filters['archive'])
             ->orderBy('start_date');
 

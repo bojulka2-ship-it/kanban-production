@@ -19,7 +19,7 @@
                     fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui'] },
                     colors: {
                         accent: '#2563EB',
-                        accentHover: '#1D4ED8',
+                        'accent-hover': '#1D4ED8',
                         page: '#F1F5F9',
                         ink: '#0F172A',
                         muted: '#64748B',
@@ -60,12 +60,12 @@
                 <div x-show="open" x-cloak
                      class="absolute right-0 mt-2 w-52 bg-white border border-line rounded-lg shadow-lg py-1 z-30">
                     <a href="{{ route('password.edit') }}"
-                       class="block px-4 py-2 text-sm hover:bg-page"
+                       class="block px-4 py-3 md:py-2 text-sm hover:bg-page"
                        @click="open = false">Сменить пароль</a>
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
                         <button type="submit"
-                                class="w-full text-left px-4 py-2 text-sm text-danger hover:bg-page">
+                                class="w-full text-left px-4 py-3 md:py-2 text-sm text-danger hover:bg-page">
                             Выйти
                         </button>
                     </form>
