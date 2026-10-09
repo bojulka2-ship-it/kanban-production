@@ -1,5 +1,5 @@
 # Образ для деплоя на Railway (Laravel + SQLite, без Node/Vite)
-FROM php:8.2-cli
+FROM php:8.4-cli
 
 # Системные библиотеки и PHP-расширения, нужные Laravel и SQLite
 RUN apt-get update && apt-get install -y --no-install-recommends \

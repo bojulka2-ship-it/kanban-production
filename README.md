@@ -71,7 +71,7 @@ php artisan test --filter=TaskTrackerTest
 
 ## Деплой на Railway
 
-В репозитории есть `Dockerfile` (PHP 8.2 + `pdo_sqlite`) и `railway.json` (healthcheck `/login`, рестарт при сбое). База SQLite хранится на томе и переживает рестарты.
+В репозитории есть `Dockerfile` (PHP 8.4 + `pdo_sqlite`) и `railway.json` (healthcheck `/login`, рестарт при сбое). База SQLite хранится на томе и переживает рестарты.
 
 1. Railway → **New Project → Deploy from GitHub repo** → выбрать `kanban-production` (ветка `master`).
 2. Сервис → **Variables** — заполнить по таблице ниже. `APP_KEY` получить командой `php artisan key:generate --show`.
